@@ -22,6 +22,8 @@ class EXPORTS InterserverClient
 	: public NetworkConnection
 {
 public:
+	typedef phoenix::callback<false, void(bool)> notification_t;
+
 	InterserverClient(boost::asio::io_service &ioService);
 	~InterserverClient();
 
@@ -34,7 +36,7 @@ public:
 	void addCapability(const Capability &capability);
 	void removeCapability(const Capability &capability);
 
-	void requestNotify(const Capability &capability, std::function<void(bool)> callback);
+	void requestNotify(const Capability &capability, notification_t::function_type &&callback);
 
 private:
 	std::string encipher(const std::string &what);
@@ -44,7 +46,7 @@ private:
 	void keepalive();
 	void receive();
 
-	std::map<Capability, phoenix::callback<false, void(bool)>> m_notifications;
+	std::map<Capability, notification_t> m_notifications;
 	std::map<Capability, uint32_t> m_capabilities;
 	boost::asio::deadline_timer m_keepalive;
 

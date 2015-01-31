@@ -2,5 +2,5 @@
 <?xml-stylesheet type="text/xsl" href="plugins.xslt"?>
 <plugins>
   <plugin id="interserver-client" name="Interserver Client" enabled="yes" />
-  <plugin id="account" name="Account Server" enabled="yes" />
+  <plugin id="loginservice" name="Account Server" enabled="yes" />
 </plugins>

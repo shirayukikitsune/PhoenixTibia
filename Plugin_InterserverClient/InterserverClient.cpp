@@ -124,13 +124,13 @@ void InterserverClient::removeCapability(const Capability &capability)
 	}
 }
 
-void InterserverClient::requestNotify(const Capability &capability, std::function<void(bool)> callback)
+void InterserverClient::requestNotify(const Capability &capability, notification_t::function_type &&callback)
 {
 	PacketPtr packet(new Packet);
 	packet->push<uint16_t>(0x0005).push<PacketSerializable>(capability);
 	send(packet);
 
-	m_notifications.emplace(capability, callback);
+	m_notifications[capability].push(callback);
 }
 
 void InterserverClient::sendCapabilityList()

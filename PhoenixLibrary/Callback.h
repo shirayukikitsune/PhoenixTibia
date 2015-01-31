@@ -63,6 +63,12 @@ namespace phoenix {
 			return !m_functions.empty();
 		}
 
+		int push(const function_type &fn) {
+			m_functions[++m_id] = fn;
+
+			return m_id;
+		}
+
 		int push(function_type && fn) {
 			m_functions[++m_id] = fn;
 
@@ -155,6 +161,12 @@ namespace phoenix {
 
 		void operator() (ArgTypes... args) {
 			caller(m_functions, args...);
+		}
+
+		int push(const function_type &fn) {
+			m_functions[++m_id] = fn;
+
+			return m_id;
 		}
 
 		int push(function_type && fn) {
