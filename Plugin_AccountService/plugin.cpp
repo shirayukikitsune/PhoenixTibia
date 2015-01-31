@@ -7,31 +7,17 @@
 
 #include "Packet.h"
 
-#include "../Plugin_Interserver/InterserverService.h"
-#include "../Plugin_InterserverClient/InterserverClient.h"
-
-#include "Account.h"
-#include "Character.h"
-#include "World.h"
 #include "AccountService.h"
-
-#include <openssl/evp.h>
-#include <openssl/aes.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
+#include "../Plugin_InterserverClient/InterserverClient.h"
 
 std::weak_ptr<Settings> g_settings;
 std::weak_ptr<ComponentManager> g_manager;
 std::weak_ptr<NetworkManager> g_network;
 std::weak_ptr<InterserverClient> g_client;
 
-LoggerComponent *g_logger;
-
 std::shared_ptr<AccountService> g_service;
 
-std::map<uint32_t, std::shared_ptr<World>> g_worlds;
-RSA *g_rsa;
+LoggerComponent *g_logger;
 
 int g_readyCallback, g_connectedCallback, g_beforeNetworkStart, g_serverTerminating;
 
@@ -47,8 +33,6 @@ PLUGIN_ONLOADING
 		auto component = manager->find("logger");
 		if (component)
 			g_logger = component->asLogger();
-
-		g_service.reset(new AccountService);
 
 		g_readyCallback = manager->OnServerReady.push([]() {
 			if (auto manager = g_manager.lock()) {
@@ -82,21 +66,6 @@ PLUGIN_ONLOADING
 				network->unregisterService(g_service);
 		});
 	}
-
-	auto setting = g_settings.lock();
-	if (!setting) return false;
-
-	BIO *bio = BIO_new(BIO_s_file());
-	if (bio == NULL || BIO_read_filename(bio, "data/rsa.pem") <= 0) {
-		ERR_print_errors(bio);
-		return false;
-	}
-	char *key = strdup(setting->getString("pem_key").c_str());
-	g_rsa = PEM_read_bio_RSAPrivateKey(bio, NULL, 0, key);
-	free(key);
-
-	if (!g_rsa)
-		return false;
 
 	return true;
 }

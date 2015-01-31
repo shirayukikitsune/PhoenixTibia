@@ -15,22 +15,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="plugin.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AccountService.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="config.lua" />
-    <None Include="interserver_config.lua" />
-    <None Include="data\scripts\hello-world.lua" />
-    <None Include="data\scripts\test.lua" />
-    <None Include="login_config.lua" />
-  </ItemGroup>
-  <ItemGroup>
-    <Xml Include="data\plugins\plugins.xml" />
-    <Xml Include="data\plugins\interserver_plugins.xml" />
-    <Xml Include="data\scripts\scripts.xml" />
-    <Xml Include="data\plugins\plugins.xslt" />
-    <Xml Include="data\plugins\login_plugins.xml" />
+    <ClInclude Include="AccountService.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

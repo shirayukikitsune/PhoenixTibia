@@ -25,4 +25,4 @@ interserver_password = '!alksvm%@SA561'
 
 locale = "ja-jp"
 
-client_version = 860
+client_version = 1041

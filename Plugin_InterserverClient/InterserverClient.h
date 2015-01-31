@@ -34,6 +34,8 @@ public:
 	void addCapability(const Capability &capability);
 	void removeCapability(const Capability &capability);
 
+	void requestNotify(const Capability &capability, std::function<void(bool)> callback);
+
 private:
 	std::string encipher(const std::string &what);
 
@@ -42,6 +44,7 @@ private:
 	void keepalive();
 	void receive();
 
+	std::map<Capability, phoenix::callback<false, void(bool)>> m_notifications;
 	std::map<Capability, uint32_t> m_capabilities;
 	boost::asio::deadline_timer m_keepalive;
 

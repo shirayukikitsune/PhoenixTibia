@@ -124,6 +124,15 @@ void InterserverClient::removeCapability(const Capability &capability)
 	}
 }
 
+void InterserverClient::requestNotify(const Capability &capability, std::function<void(bool)> callback)
+{
+	PacketPtr packet(new Packet);
+	packet->push<uint16_t>(0x0005).push<PacketSerializable>(capability);
+	send(packet);
+
+	m_notifications.emplace(capability, callback);
+}
+
 void InterserverClient::sendCapabilityList()
 {
 	if (!m_capabilities.empty()) {
@@ -167,6 +176,24 @@ void InterserverClient::receive()
 {
 	beginReading([this](PacketPtr packet, boost::system::error_code e) {
 		if (!e) {
+			uint16_t handle = packet->pop<uint16_t>();
+
+			switch (handle) {
+			case 0x0006:
+			{
+				Capability cap;
+				packet->get(cap);
+				bool state = packet->pop<bool>();
+
+				auto range = m_notifications.equal_range(cap);
+				for (auto cb = range.first; cb != range.second; ++cb) {
+					cb->second(state);
+				}
+
+				break;
+			}
+			}
+
 			receive();
 			return;
 		}

@@ -27,7 +27,7 @@
     <ClCompile Include="World.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="AccountService.cpp">
+    <ClCompile Include="LoginService.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -41,7 +41,7 @@
     <ClInclude Include="World.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="AccountService.h">
+    <ClInclude Include="LoginService.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

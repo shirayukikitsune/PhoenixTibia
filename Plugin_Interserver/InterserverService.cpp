@@ -88,6 +88,9 @@ InterserverService::InterserverService()
 		auto capability = p->pop<std::string>();
 
 		auto i = m_capabilities.equal_range(capability);
+		PacketPtr response(new Packet);
+		response->push<uint16_t>(0x0004);
+
 		if (i.first != i.second) {
 			auto len = p->size() - p->pos();
 			uint8_t* b = new uint8_t[len];
@@ -96,19 +99,26 @@ InterserverService::InterserverService()
 			for (auto connection = i.first; connection != i.second; ++connection) {
 				if (auto con = connection->second.connection.lock()) {
 					PacketPtr sendPacket(new Packet);
-					sendPacket->push<uint16_t>(0x0004).copy(b, len);
+					sendPacket->push<uint16_t>(0x0005).copy(b, len);
 					con->send(sendPacket);
 				}
 			}
 
+			response->push<bool>(true);
+
 			delete[] b;
 		}
+		else {
+			response->push<bool>(false);
+		}
+
+		c->send(response);
 
 		return true;
 	};
 
 	// Register notify on capability registered
-	m_handlers[5] = [this](NetworkConnectionPtr c, PacketPtr p) {
+	m_handlers[6] = [this](NetworkConnectionPtr c, PacketPtr p) {
 		auto capability = p->pop<std::string>();
 		boost::asio::ip::tcp::endpoint serviceEndpoint;
 		serviceEndpoint.address().from_string(p->pop<std::string>());

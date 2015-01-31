@@ -1,4 +1,4 @@
-#include "AccountService.h"
+#include "LoginService.h"
 #include "LoggerComponent.h"
 #include "NetworkConnection.h"
 #include "Packet.h"
@@ -15,7 +15,7 @@ extern std::map<uint32_t, std::shared_ptr<World>> g_worlds;
 extern LoggerComponent *g_logger;
 extern RSA *g_rsa;
 
-AccountService::AccountService()
+LoginService::LoginService()
 {
 	std::regex regex("[^[:digit:]]");
 	if (auto settings = g_settings.lock()) {
@@ -24,11 +24,11 @@ AccountService::AccountService()
 	}
 }
 
-AccountService::~AccountService()
+LoginService::~LoginService()
 {
 }
 
-unsigned short AccountService::getBindPort()
+unsigned short LoginService::getBindPort()
 {
 	if (auto settings = g_settings.lock())
 		return (unsigned short)settings->getUnsigned("login_port");
@@ -36,7 +36,7 @@ unsigned short AccountService::getBindPort()
 	return 0U;
 }
 
-std::string AccountService::getBindAddress()
+std::string LoginService::getBindAddress()
 {
 	if (auto settings = g_settings.lock())
 		return settings->getString("login_address");
@@ -44,17 +44,17 @@ std::string AccountService::getBindAddress()
 	return "localhost";
 }
 
-bool AccountService::needChecksum()
+bool LoginService::needChecksum()
 {
 	return true;
 }
 
-bool AccountService::canHandle(NetworkConnectionPtr connection, PacketPtr packet)
+bool LoginService::canHandle(NetworkConnectionPtr connection, PacketPtr packet)
 {
 	return packet->peek<uint8_t>() == 0x01;
 }
 
-bool AccountService::handleFirst(NetworkConnectionPtr connection, PacketPtr packet)
+bool LoginService::handleFirst(NetworkConnectionPtr connection, PacketPtr packet)
 {
 	uint16_t os = packet->pop<uint16_t>();
 	uint16_t version = packet->pop<uint16_t>();
@@ -112,7 +112,7 @@ bool AccountService::handleFirst(NetworkConnectionPtr connection, PacketPtr pack
 	return false;
 }
 
-void AccountService::disconnectClient(NetworkConnectionPtr connection, uint8_t error, const std::string& message)
+void LoginService::disconnectClient(NetworkConnectionPtr connection, uint8_t error, const std::string& message)
 {
 	PacketPtr packet(new Packet);
 
@@ -121,7 +121,7 @@ void AccountService::disconnectClient(NetworkConnectionPtr connection, uint8_t e
 	connection->send(packet);
 }
 
-bool AccountService::RSAdecrypt(NetworkConnectionPtr connection, PacketPtr packet)
+bool LoginService::RSAdecrypt(NetworkConnectionPtr connection, PacketPtr packet)
 {
 	if (packet->size() - packet->pos() != 128) {
 		if (g_logger) {

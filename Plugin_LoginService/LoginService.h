@@ -2,14 +2,14 @@
 
 #include "NetworkService.h"
 
-class AccountService :
+class LoginService :
 	public NetworkService
 {
 public:
-	AccountService();
-	virtual ~AccountService();
+	LoginService();
+	virtual ~LoginService();
 
-	virtual std::string getName() const { return "account"; }
+	virtual std::string getName() const { return "login"; }
 
 	virtual std::string getBindAddress();
 	virtual unsigned short getBindPort();
