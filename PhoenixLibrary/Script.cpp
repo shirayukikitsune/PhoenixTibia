@@ -263,21 +263,34 @@ int manager_callbackRegister(lua_State *L)
 			lua_pop(L, lua_gettop(L) - start - 1);
 		};
 
-		if (stricmp("OnServerReady", type) == 0) {
-			auto callback = [L, idx, type, getFunction]() {
-				getFunction(L, idx, type);
-				lua_pcall(L, 0, 0, 0);
-			};
+		auto callback = [L, idx, type, getFunction]() {
+			getFunction(L, idx, type);
+			lua_pcall(L, 0, 0, 0);
+		};
 
+		if (stricmp("OnServerReady", type) == 0) {
 			retval = manager->OnServerReady.push(callback);
 		}
+		else if (stricmp("OnServerTerminating", type) == 0) {
+			retval = manager->OnServerTerminating.push(callback);
+		}
 		else if (stricmp("OnBeforeNetworkStart", type) == 0) {
-			auto callback = [L, idx, type, getFunction]() {
-				getFunction(L, idx, type);
-				lua_pcall(L, 0, 0, 0);
-			};
-
 			retval = manager->OnBeforeNetworkStart.push(callback);
+		}
+		else if (stricmp("OnNetworkServiceRegistering", type) == 0) {
+			retval = manager->OnNetworkServiceRegistering.push(callback);
+		}
+		else if (stricmp("OnNetworkServiceRegistered", type) == 0) {
+			retval = manager->OnNetworkServiceRegistered.push(callback);
+		}
+		else if (stricmp("OnNetworkServiceUnregistering", type) == 0) {
+			retval = manager->OnNetworkServiceUnregistering.push(callback);
+		}
+		else if (stricmp("OnNetworkServiceUnregistered", type) == 0) {
+			retval = manager->OnNetworkServiceUnregistered.push(callback);
+		}
+		else if (stricmp("OnClientConnected", type) == 0) {
+			retval = manager->OnClientConnected.push(callback);
 		}
 	}
 	else lua_pop(L, 1);
@@ -297,10 +310,28 @@ int manager_callbackUnregister(lua_State *L)
 	if (stricmp("OnServerReady", type) == 0) {
 		manager->OnServerReady.pop(callback);
 	}
-	if (stricmp("OnBeforeNetworkStart", type) == 0) {
+	else if (stricmp("OnServerTerminating", type) == 0) {
+		manager->OnServerTerminating.pop(callback);
+	}
+	else if (stricmp("OnBeforeNetworkStart", type) == 0) {
 		manager->OnBeforeNetworkStart.pop(callback);
 	}
-	
+	else if (stricmp("OnNetworkServiceRegistering", type) == 0) {
+		manager->OnNetworkServiceRegistering.pop(callback);
+	}
+	else if (stricmp("OnNetworkServiceRegistered", type) == 0) {
+		manager->OnNetworkServiceRegistered.pop(callback);
+	}
+	else if (stricmp("OnNetworkServiceUnregistering", type) == 0) {
+		manager->OnNetworkServiceUnregistering.pop(callback);
+	}
+	else if (stricmp("OnNetworkServiceUnregistered", type) == 0) {
+		manager->OnNetworkServiceUnregistered.pop(callback);
+	}
+	else if (stricmp("OnClientConnected", type) == 0) {
+		manager->OnClientConnected.pop(callback);
+	}
+
 	return 0;
 }
 
