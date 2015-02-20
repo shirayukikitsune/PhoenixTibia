@@ -3,6 +3,7 @@
 #include "Settings.h"
 #include "ComponentManager.h"
 #include "NetworkManager.h"
+#include "ScriptComponent.h"
 
 #include "InterserverClient.h"
 
@@ -10,6 +11,7 @@ std::weak_ptr<Settings> g_settings;
 std::weak_ptr<ComponentManager> g_manager;
 std::weak_ptr<NetworkManager> g_network;
 std::shared_ptr<InterserverClient> g_client;
+std::weak_ptr<Script> g_script;
 int g_readyCallback = -1;
 
 PLUGIN_API_VER_FUNCTION
@@ -25,6 +27,14 @@ PLUGIN_ONLOADING
 	if (auto manager = g_manager.lock()) {
 		g_readyCallback = manager->OnServerReady.push([]() {
 			g_client->connect();
+
+			if (auto manager = g_manager.lock()) {
+				auto script = manager->find("script");
+				if (script) {
+					g_script = script->asScript()->getScript();
+					g_client->initialize();
+				}
+			}
 		});
 	}
 

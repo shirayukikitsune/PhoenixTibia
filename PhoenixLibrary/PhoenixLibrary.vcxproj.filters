@@ -63,6 +63,9 @@
     <ClInclude Include="LoggerComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="LuaNetworkService.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Component.cpp">
@@ -102,6 +105,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="LoggerComponent.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LuaNetworkService.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

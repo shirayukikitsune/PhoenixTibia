@@ -4,11 +4,12 @@
 #include "NetworkConnection.h"
 #include "LoggerComponent.h"
 
+#include <chrono>
 #include <cstdint>
-
 #include <cstdio>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <random>
 #include <sstream>
 
 #include <openssl/engine.h>
@@ -17,8 +18,19 @@
 extern std::weak_ptr<Settings> g_settings;
 extern LoggerComponent *g_logger;
 
+std::mt19937 g_random(0);
+
 InterserverService::InterserverService()
 {
+	// Try to reseed the RNG
+	try {
+		std::random_device rd;
+		g_random.seed(rd());
+	}
+	catch (std::exception) {
+		g_random.seed(std::chrono::system_clock::now().time_since_epoch().count());
+	}
+
 	ENGINE_load_builtin_engines();
 	ENGINE_register_all_complete();
 
@@ -83,7 +95,7 @@ InterserverService::InterserverService()
 		return true;
 	};
 
-	// Register relay handler
+	// Register relay message handler
 	m_handlers[4] = [this](NetworkConnectionPtr c, PacketPtr p) {
 		auto capability = p->pop<std::string>();
 
@@ -119,12 +131,63 @@ InterserverService::InterserverService()
 
 	// Register notify on capability registered
 	m_handlers[6] = [this](NetworkConnectionPtr c, PacketPtr p) {
-		auto capability = p->pop<std::string>();
-		boost::asio::ip::tcp::endpoint serviceEndpoint;
-		serviceEndpoint.address().from_string(p->pop<std::string>());
-		serviceEndpoint.port(p->pop<uint16_t>());
+		Capability capability;
+		p->get(capability);
 
-		m_capabilityNotify.emplace(capability, Capability(capability, serviceEndpoint, c));
+		m_capabilityNotify.emplace(capability.name, capability);
+
+		return true;
+	};
+
+	// Register relay & notify answer handler
+	m_handlers[7] = [this](NetworkConnectionPtr c, PacketPtr p) {
+		Capability capability;
+		p->get(capability);
+
+		auto i = m_capabilities.equal_range(capability.name);
+		for (auto con = i.first; con != i.second; ++con) {
+			auto connection = con->second.connection.lock();
+			if (connection && connection->socket().is_open()) {
+				while (true) {
+					uint32_t requestIndex = g_random();
+
+					if (m_relay.find(requestIndex) != m_relay.end()) continue;
+
+					m_relay.emplace(requestIndex, c);
+
+					auto len = p->size() - p->pos();
+					uint8_t* b = new uint8_t[len];
+					p->get(len, b);
+					PacketPtr out(new Packet);
+					out->push<uint16_t>(0x0007).push<uint32_t>(requestIndex).copy(b, len);
+					delete[] b;
+					connection->send(out);
+
+					break;
+				}
+			}
+		}
+		
+		return true;
+	};
+
+	m_handlers[8] = [this](NetworkConnectionPtr c, PacketPtr p) {
+		uint32_t index = p->pop<uint32_t>();
+
+		auto requester = m_relay.find(index);
+		if (requester == m_relay.end()) return true;
+
+		auto len = p->size() - p->pos();
+		if (len > 0) {
+			uint8_t* b = new uint8_t[len];
+			p->get(len, b);
+			PacketPtr out(new Packet);
+			out->push<uint16_t>(0x0008).copy(b, len);
+			delete[] b;
+			requester->second->send(out);
+		}
+
+		m_relay.erase(requester);
 
 		return true;
 	};
@@ -159,6 +222,18 @@ bool InterserverService::canHandle(NetworkConnectionPtr connection, PacketPtr pa
 
 bool InterserverService::handleFirst(NetworkConnectionPtr connection, PacketPtr packet)
 {
+	std::stringstream ss;
+
+	// Verify protocol version
+	uint16_t protocolVersion = packet->pop<uint16_t>();
+
+	if (protocolVersion < InterserverService::minProtocolVersion || protocolVersion > InterserverService::maxProtocolVersion) {
+		ss << "Interserver: Received invalid protocol version from " << connection->socket().remote_endpoint().address().to_string();
+		if (g_logger) g_logger->log(LogLevel::Information, ss.str());
+
+		return false;
+	}
+
 	// Request authentication
 	std::string receivedUsername = packet->pop<std::string>();
 	std::string receivedPassword = packet->pop<std::string>();
@@ -171,11 +246,13 @@ bool InterserverService::handleFirst(NetworkConnectionPtr connection, PacketPtr 
 	}
 
 	if (username.compare(receivedUsername) != 0 || password.compare(receivedPassword) != 0) {
-		std::cout << ">>> Interserver: Failed connection attempt from " << connection->socket().remote_endpoint().address().to_string() << std::endl;
-		return false;
+		ss << "Interserver: Failed connection attempt from " << connection->socket().remote_endpoint().address().to_string();
+		if (g_logger) g_logger->log(LogLevel::Warning, ss.str());
 	}
 
-	std::cout << ">>> InterserverService: Connection success from " << connection->socket().remote_endpoint().address().to_string() << std::endl;
+	ss << "InterserverService: Connection success from " << connection->socket().remote_endpoint().address().to_string();
+	if (g_logger) g_logger->log(LogLevel::Information, ss.str());
+	std::cout << ">>> " << ss.str() << std::endl;
 
 	return true;
 }
@@ -205,6 +282,9 @@ void InterserverService::addHandler(uint16_t code, InterserverService::PacketHan
 
 void InterserverService::removeHandler(uint16_t code)
 {
+	if (code < 0x0010)
+		return;
+
 	auto i = m_handlers.find(code);
 
 	if (i != m_handlers.end())

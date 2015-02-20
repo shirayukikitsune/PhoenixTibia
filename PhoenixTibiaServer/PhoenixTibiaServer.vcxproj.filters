@@ -25,6 +25,7 @@
     <None Include="data\scripts\hello-world.lua" />
     <None Include="data\scripts\test.lua" />
     <None Include="login_config.lua" />
+    <None Include="data\scripts\account-service.lua" />
   </ItemGroup>
   <ItemGroup>
     <Xml Include="data\plugins\plugins.xml" />
@@ -32,5 +33,6 @@
     <Xml Include="data\scripts\scripts.xml" />
     <Xml Include="data\plugins\plugins.xslt" />
     <Xml Include="data\plugins\login_plugins.xml" />
+    <Xml Include="data\scripts\account_scripts.xml" />
   </ItemGroup>
 </Project>

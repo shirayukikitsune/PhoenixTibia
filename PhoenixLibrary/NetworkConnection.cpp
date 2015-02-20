@@ -5,8 +5,8 @@
 
 using boost::asio::ip::tcp;
 
-NetworkConnection::NetworkConnection(boost::asio::io_service &ioService)
-: m_socket(ioService), m_timeout(ioService)
+NetworkConnection::NetworkConnection(boost::asio::io_service &ioService, bool isLua)
+	: m_socket(ioService), m_timeout(ioService), m_isLua(isLua)
 {
 	m_hasKeys = false;
 }

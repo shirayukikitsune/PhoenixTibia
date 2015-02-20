@@ -1,13 +1,16 @@
 #pragma once
 
-#include <string>
+#include <lua.hpp>
 #include <memory>
 #include <unordered_map>
+#include <string>
 
-class Settings;
 class ComponentManager;
+class Packet;
+class PacketSerializable;
+class Settings;
+class NetworkConnection;
 class NetworkManager;
-struct lua_State;
 
 class Script
 {
@@ -24,6 +27,8 @@ public:
 	bool prepareCall(const std::string &scriptId, const std::string &function);
 	bool call(int nArgs, int nResults = -1); // -1 = LUA_MULTRET
 
+	lua_State* getEnv() { return L; }
+
 protected:
 	virtual void registerFunctions();
 
@@ -32,3 +37,11 @@ private:
 	std::unordered_map<std::string, int> m_envs;
 };
 
+void copyFunction(lua_State *fromState, lua_State *toState);
+int createMetatable(lua_State *L, const char *tableName, const luaL_Reg *functions);
+Packet* checkPacket(lua_State *L);
+NetworkConnection* checkNetworkConnection(lua_State *L);
+PacketSerializable* lua_topacketserializable(lua_State *L);
+int lua_pushpacket(lua_State *L, Packet* packet);
+int lua_pushconnection(lua_State *L, NetworkConnection* connection);
+int lua_pushpacketserializable(lua_State *L, PacketSerializable* data);

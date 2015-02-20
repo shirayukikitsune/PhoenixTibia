@@ -29,10 +29,16 @@ public:
 	void addHandler(uint16_t code, PacketHandler handler);
 	void removeHandler(uint16_t code);
 
+	enum {
+		minProtocolVersion = 0x0001,
+		maxProtocolVersion = 0x0001
+	};
+
 private:
 	std::map<uint16_t, PacketHandler> m_handlers;
 	std::multimap<std::string, Capability> m_capabilities;
 	std::multimap<std::string, Capability> m_capabilityNotify;
+	std::map<uint32_t, NetworkConnectionPtr> m_relay;
 
 	std::string encipher(const std::string &what);
 	void registerCapability(const Capability &capability);

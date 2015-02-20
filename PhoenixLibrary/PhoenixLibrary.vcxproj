@@ -23,6 +23,7 @@
     <ClInclude Include="Component.h" />
     <ClInclude Include="ComponentManager.h" />
     <ClInclude Include="LoggerComponent.h" />
+    <ClInclude Include="LuaNetworkService.h" />
     <ClInclude Include="NetworkConnection.h" />
     <ClInclude Include="NetworkDefinitions.h" />
     <ClInclude Include="NetworkListener.h" />
@@ -40,6 +41,7 @@
     <ClCompile Include="Component.cpp" />
     <ClCompile Include="ComponentManager.cpp" />
     <ClCompile Include="LoggerComponent.cpp" />
+    <ClCompile Include="LuaNetworkService.cpp" />
     <ClCompile Include="NetworkConnection.cpp" />
     <ClCompile Include="NetworkListener.cpp" />
     <ClCompile Include="NetworkManager.cpp" />
@@ -138,6 +140,9 @@
     <Lib>
       <AdditionalDependencies>libxml2.lib;libiconv_a.lib;lua-5.3.lib</AdditionalDependencies>
     </Lib>
+    <ProjectReference>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -154,6 +159,9 @@
     <Lib>
       <AdditionalDependencies>libxml2.lib;libiconv_a.lib;lua-5.3.lib</AdditionalDependencies>
     </Lib>
+    <ProjectReference>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -174,6 +182,9 @@
     <Lib>
       <AdditionalDependencies>libxml2.lib;libiconv_a.lib;lua-5.3.lib</AdditionalDependencies>
     </Lib>
+    <ProjectReference>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -194,6 +205,9 @@
     <Lib>
       <AdditionalDependencies>libxml2.lib;libiconv_a.lib;lua-5.3.lib</AdditionalDependencies>
     </Lib>
+    <ProjectReference>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

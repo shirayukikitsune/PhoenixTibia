@@ -23,9 +23,13 @@ class EXPORTS InterserverClient
 {
 public:
 	typedef phoenix::callback<false, void(bool)> notification_t;
+	typedef std::function<void(PacketPtr)> requestpacket_t;
+	typedef std::function<void(PacketPtr)> requestpackethandler_t;
 
 	InterserverClient(boost::asio::io_service &ioService);
 	~InterserverClient();
+
+	void initialize();
 
 	void startConnect();
 	void connect();
@@ -38,6 +42,13 @@ public:
 
 	void requestNotify(const Capability &capability, notification_t::function_type &&callback);
 
+	void requestPacketSerializable(const Capability &capability, const std::string& className, const PacketSerializable& data, requestpacket_t callback);
+	void registerPacketSerializableHandler(const std::string& className, requestpackethandler_t handler);
+
+	enum {
+		protocolVersion = 0x0001
+	};
+
 private:
 	std::string encipher(const std::string &what);
 
@@ -49,6 +60,12 @@ private:
 	std::map<Capability, notification_t> m_notifications;
 	std::map<Capability, uint32_t> m_capabilities;
 	boost::asio::deadline_timer m_keepalive;
+	std::map<uint32_t, requestpacket_t> m_relays;
+	std::map<std::string, requestpackethandler_t> m_handlers;
+
+	enum class RelayOperation : uint8_t {
+		RequestPacketSerializable = 1
+	};
 
 protected:
 	virtual bool needChecksum() {

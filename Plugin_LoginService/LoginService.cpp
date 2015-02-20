@@ -1,4 +1,6 @@
 #include "LoginService.h"
+
+#include "../Plugin_InterserverClient/InterserverClient.h"
 #include "LoggerComponent.h"
 #include "NetworkConnection.h"
 #include "Packet.h"
@@ -11,6 +13,7 @@
 #include <openssl/rsa.h>
 
 extern std::weak_ptr<Settings> g_settings;
+extern std::weak_ptr<InterserverClient> g_client;
 extern std::map<uint32_t, std::shared_ptr<World>> g_worlds;
 extern LoggerComponent *g_logger;
 extern RSA *g_rsa;
@@ -79,35 +82,39 @@ bool LoginService::handleFirst(NetworkConnectionPtr connection, PacketPtr packet
 	std::string account = packet->pop<std::string>();
 	std::string password = packet->pop<std::string>();
 
-	// TODO: Validate account and password
-	PacketPtr outPacket(new Packet);
+	if (auto client = g_client.lock()) { 
+		PacketPtr outPacket(new Packet);
 
-	// Send MOTD
-	outPacket->push<uint8_t>(0x14).push<std::string>("1\nPhoenixTibiaServer v0.1");
+		// Send MOTD
+		outPacket->push<uint8_t>(0x14).push<std::string>("1\nPhoenixTibiaServer v0.1");
 
-	// Send character list
-	outPacket->push<uint8_t>(0x64)
-		// Add Worlds
-		.push<uint8_t>((uint8_t)g_worlds.size());
-	for (auto &&world : g_worlds) {
-		outPacket->push<uint8_t>((uint8_t)world.first)
-			.push<std::string>(world.second->name())
-			.push<std::string>(world.second->endpoint().address().to_string())
-			.push<uint16_t>(world.second->endpoint().port())
-			.push<uint8_t>(0);
+		// Send character list
+		outPacket->push<uint8_t>(0x64)
+			// Add Worlds
+			.push<uint8_t>((uint8_t)g_worlds.size());
+		for (auto &&world : g_worlds) {
+			outPacket->push<uint8_t>((uint8_t)world.first)
+				.push<std::string>(world.second->name())
+				.push<std::string>(world.second->endpoint().address().to_string())
+				.push<uint16_t>(world.second->endpoint().port())
+				.push<uint8_t>(0);
+		}
+
+		// Add characters
+		outPacket->push<uint8_t>((uint8_t)g_worlds.size());
+		for (auto &&world : g_worlds) {
+			outPacket->push<uint8_t>((uint8_t)world.first)
+				.push<std::string>("Test on " + world.second->name());
+		}
+
+		// Add premium days
+		outPacket->push<uint16_t>(0xffff);
+
+		connection->send(outPacket);
 	}
-
-	// Add characters
-	outPacket->push<uint8_t>((uint8_t)g_worlds.size());
-	for (auto &&world : g_worlds) {
-		outPacket->push<uint8_t>((uint8_t)world.first)
-			.push<std::string>("Test on " + world.second->name());
+	else {
+		disconnectClient(connection, 0x0a, "Internal server error. Please try again later.");
 	}
-
-	// Add premium days
-	outPacket->push<uint16_t>(0xffff);
-
-	connection->send(outPacket);
 
 	return false;
 }

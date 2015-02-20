@@ -149,6 +149,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="data\scripts\account-service.lua" />
     <None Include="login_config.lua" />
     <None Include="config.lua" />
     <None Include="data\scripts\hello-world.lua" />
@@ -160,6 +161,7 @@
     <Xml Include="data\plugins\interserver_plugins.xml" />
     <Xml Include="data\plugins\plugins.xml" />
     <Xml Include="data\plugins\plugins.xslt" />
+    <Xml Include="data\scripts\account_scripts.xml" />
     <Xml Include="data\scripts\scripts.xml" />
   </ItemGroup>
   <ItemGroup>

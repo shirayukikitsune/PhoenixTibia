@@ -3,7 +3,7 @@
 #include "Tools.h"
 
 #include <string>
-#include <array>
+#include <vector>
 #include <cstdint>
 #include <cstring>
 
@@ -27,12 +27,18 @@ class Packet
 {
 public:
 	enum { maxPacketSize = 0x7fff, headerSize = 2 };
-	typedef std::array<uint8_t, maxPacketSize> buffer_t;
+	typedef std::vector<uint8_t> buffer_t;
 
 	Packet() {
 		reset();
 	}
-
+	Packet(Packet *copy) {
+		m_buffer.resize(copy->m_buffer.capacity());
+		std::copy(copy->m_buffer.begin(), copy->m_buffer.end(), m_buffer.begin());
+		m_start = copy->m_start;
+		m_position = copy->m_position;
+		m_length = copy->m_length;
+	}
 	~Packet() { }
 
 	Packet& reset() {
@@ -40,13 +46,16 @@ public:
 		m_position = 8;
 		m_length = 0;
 
+		m_buffer.resize(512, 0);
+
 		return *this;
 	}
 
-	//template <typename T> Packet& push(const T &);
-
 	template <typename T>
 	Packet& push(const T &value) {
+		while (m_position + sizeof(T) > m_buffer.size()) {
+			m_buffer.resize(m_buffer.size() + 512, 0);
+		}
 		*(T*)&m_buffer[m_position] = value;
 		m_position += sizeof (T);
 		m_length += sizeof (T);
@@ -57,6 +66,10 @@ public:
 	template <>
 	Packet& push<std::string>(const std::string &str) {
 		push<uint16_t>((uint16_t)str.length());
+
+		while (m_position + str.length() > m_buffer.size()) {
+			m_buffer.resize(m_buffer.size() + 512, 0);
+		}
 
 		std::memcpy(&m_buffer[m_position], str.c_str(), str.length());
 		m_position += str.length();
@@ -79,6 +92,10 @@ public:
 	}
 
 	Packet& copy(const uint8_t* buffer, size_t len) {
+		while (m_position + len > m_buffer.size()) {
+			m_buffer.resize(m_buffer.size() + 512);
+		}
+
 		std::memcpy(&m_buffer[m_position], buffer, len);
 		m_position += len;
 		m_length += len;
@@ -89,6 +106,14 @@ public:
 	template <typename T>
 	T peek() {
 		return *(T*)&m_buffer[m_position];
+	}
+
+	template <>
+	std::string peek<std::string>() {
+		uint16_t len = pop<uint16_t>();
+		std::string out((char*)&m_buffer[m_position], len);
+		m_position -= sizeof uint16_t;
+		return out;
 	}
 
 	template <typename T>

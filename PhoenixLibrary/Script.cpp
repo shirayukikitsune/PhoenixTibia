@@ -1,7 +1,10 @@
 #include "Script.h"
-#include "Settings.h"
+
 #include "ComponentManager.h"
+#include "LuaNetworkService.h"
+#include "NetworkConnection.h"
 #include "NetworkManager.h"
+#include "Settings.h"
 
 #include <boost/filesystem.hpp>
 #include <lua.hpp>
@@ -192,6 +195,40 @@ bool Script::call(int nArgs, int nResults)
 }
 
 // **************************************
+// LUA auxiliary functions
+// **************************************
+int createMetatable(lua_State *L, const char *tableName, const luaL_Reg *functions)
+{
+	luaL_newmetatable(L, tableName);
+
+	lua_pushstring(L, "__index");
+	lua_pushvalue(L, -2);
+	lua_settable(L, -3);
+
+	luaL_setfuncs(L, functions, 0);
+
+	return 1;
+}
+
+LuaNetworkService* checkNetworkService(lua_State *L) {
+	auto udata = luaL_checkudata(L, 1, "PhoenixTibia.NetworkService");
+	luaL_argcheck(L, udata != NULL, 1, "`networkservice' expected");
+	return (LuaNetworkService*)udata;
+}
+
+Packet* checkPacket(lua_State *L) {
+	auto udata = luaL_checkudata(L, 1, "PhoenixTibia.Packet");
+	luaL_argcheck(L, udata != NULL, 1, "`packet' expected");
+	return (Packet*)udata;
+}
+
+NetworkConnection* checkNetworkConnection(lua_State *L) {
+	auto udata = luaL_checkudata(L, 1, "PhoenixTibia.Connection");
+	luaL_argcheck(L, udata != NULL, 1, "`connection' expected");
+	return (NetworkConnection*)udata;
+}
+
+// **************************************
 // Settings library
 // **************************************
 int settings_get(lua_State *L)
@@ -246,7 +283,7 @@ int manager_callbackRegister(lua_State *L)
 			lua_getfield(L, 2, type);
 		}
 		// add the function to the table
-		int idx = luaL_len(L, 2) + 1;
+		int idx = (int)luaL_len(L, 2) + 1;
 		lua_pushvalue(L, 1);
 		lua_rawseti(L, 3, idx);
 		lua_pop(L, 3);
@@ -265,7 +302,85 @@ int manager_callbackRegister(lua_State *L)
 
 		auto callback = [L, idx, type, getFunction]() {
 			getFunction(L, idx, type);
-			lua_pcall(L, 0, 0, 0);
+			int call = lua_pcall(L, 0, 0, 0);
+
+			if (call != LUA_OK) {
+				std::cerr << lua_tostring(L, -1) << std::endl;
+				lua_pop(L, 1);
+			}
+		};
+
+		auto callbackRegistering = [L, idx, type, getFunction](std::shared_ptr<NetworkService> service, std::shared_ptr<NetworkListener> listener) {
+			getFunction(L, idx, type);
+			// TODO: push a lua_userobject for both service and listener
+			lua_pushnil(L);
+			lua_pushnil(L);
+
+			int call = lua_pcall(L, 2, 1, 0);
+
+			bool result = false;
+			if (call == LUA_OK) {
+				result = lua_toboolean(L, -1) != 0;
+			}
+			else {
+				std::cerr << lua_tostring(L, -1) << std::endl;
+			}
+
+			lua_pop(L, 1);
+
+			return result;
+		};
+
+		auto callbackRegistered = [L, idx, type, getFunction](std::shared_ptr<NetworkService> service) {
+			getFunction(L, idx, type);
+			// TODO: push a lua_userobject for service
+			lua_pushnil(L);
+
+			int call = lua_pcall(L, 1, 0, 0);
+
+			if (call != LUA_OK) {
+				std::cerr << lua_tostring(L, -1) << std::endl;
+				lua_pop(L, 1);
+			}
+		};
+
+		auto callbackUnregistering = [L, idx, type, getFunction](std::shared_ptr<NetworkService> service) {
+			getFunction(L, idx, type);
+			// TODO: push a lua_userobject for service
+			lua_pushnil(L);
+
+			int call = lua_pcall(L, 1, 1, 0);
+
+			bool result = false;
+			if (call == LUA_OK) {
+				result = lua_toboolean(L, -1) != 0;
+			}
+			else {
+				std::cerr << lua_tostring(L, -1) << std::endl;
+			}
+
+			lua_pop(L, 1);
+			return result;
+		};
+
+		auto callbackClientConnected = [L, idx, type, getFunction](std::shared_ptr<NetworkListener> listener, NetworkConnectionPtr connection) {
+			getFunction(L, idx, type);
+			// TODO: push a lua_userobject for listener
+			lua_pushnil(L);
+			lua_pushconnection(L, connection.get());
+
+			int call = lua_pcall(L, 2, 1, 0);
+
+			bool result = false;
+			if (call == LUA_OK) {
+				result = lua_toboolean(L, -1) != 0;
+			}
+			else {
+				std::cerr << lua_tostring(L, -1) << std::endl;
+			}
+
+			lua_pop(L, 1);
+			return result;
 		};
 
 		if (stricmp("OnServerReady", type) == 0) {
@@ -278,19 +393,19 @@ int manager_callbackRegister(lua_State *L)
 			retval = manager->OnBeforeNetworkStart.push(callback);
 		}
 		else if (stricmp("OnNetworkServiceRegistering", type) == 0) {
-			retval = manager->OnNetworkServiceRegistering.push(callback);
+			retval = manager->OnNetworkServiceRegistering.push(callbackRegistering);
 		}
 		else if (stricmp("OnNetworkServiceRegistered", type) == 0) {
-			retval = manager->OnNetworkServiceRegistered.push(callback);
+			retval = manager->OnNetworkServiceRegistered.push(callbackRegistered);
 		}
 		else if (stricmp("OnNetworkServiceUnregistering", type) == 0) {
-			retval = manager->OnNetworkServiceUnregistering.push(callback);
+			retval = manager->OnNetworkServiceUnregistering.push(callbackUnregistering);
 		}
 		else if (stricmp("OnNetworkServiceUnregistered", type) == 0) {
-			retval = manager->OnNetworkServiceUnregistered.push(callback);
+			retval = manager->OnNetworkServiceUnregistered.push(callbackRegistered);
 		}
 		else if (stricmp("OnClientConnected", type) == 0) {
-			retval = manager->OnClientConnected.push(callback);
+			retval = manager->OnClientConnected.push(callbackClientConnected);
 		}
 	}
 	else lua_pop(L, 1);
@@ -303,7 +418,7 @@ int manager_callbackRegister(lua_State *L)
 
 int manager_callbackUnregister(lua_State *L)
 {
-	int callback = lua_tointeger(L, 1);
+	int callback = (int)lua_tointeger(L, 1);
 	auto type = lua_tostring(L, 2);
 	lua_pop(L, 2);
 
@@ -351,6 +466,474 @@ int manager_register(lua_State *L)
 // Network library
 // **************************************
 
+void copyFunction(lua_State *fromState, lua_State *toState) {
+	struct _ud {
+		char *function;
+		size_t size;
+	} data;
+	data.function = nullptr;
+	data.size = 0;
+
+	lua_Writer writer = [](lua_State *L, const void* p, size_t sz, void* ud) {
+		auto data = (_ud*)ud;
+		data->function = (char*)realloc(data->function, data->size + sz);
+		memcpy(data->function + data->size, p, sz);
+		data->size += sz;
+		return 0;
+	};
+	lua_dump(fromState, writer, &data, 0);
+	luaL_loadbuffer(toState, data.function, data.size, NULL);
+}
+
+int networkservice_tostring(lua_State *L) {
+	auto service = checkNetworkService(L);
+
+	lua_pushfstring(L, "NetworkService('%s')", service->getName().c_str());
+
+	return 1;
+}
+
+int networkservice_setprop(lua_State *L) {
+	auto service = checkNetworkService(L);
+	auto prop = luaL_checkstring(L, 2);
+
+	if (stricmp(prop, "address") == 0) {
+		auto address = luaL_checkstring(L, 3);
+		service->bindAddress = address;
+	}
+	else if (stricmp(prop, "port") == 0) {
+		auto port = luaL_checkinteger(L, 3);
+		service->bindPort = (uint16_t)port;
+	}
+	else if (stricmp(prop, "needChecksum") == 0) {
+		service->checksum = lua_toboolean(L, 3) != 0;
+	}
+	else if (stricmp(prop, "canHandle") == 0 || stricmp(prop, "handleFirst") == 0 || stricmp(prop, "handle") == 0 || stricmp(prop, "removeConnection") == 0) {
+		luaL_checktype(L, 3, LUA_TFUNCTION);
+
+		copyFunction(L, service->getState());
+
+		lua_setglobal(service->getState(), prop);
+	}
+	else luaL_error(L, "invalid property for `networkservice': %s", prop);
+
+	return 0;
+}
+
+int networkservice_getprop(lua_State *L) {
+	auto service = checkNetworkService(L);
+	auto prop = luaL_checkstring(L, 2);
+
+	if (stricmp(prop, "address") == 0) {
+		lua_pushstring(L, service->getBindAddress().c_str());
+	}
+	else if (stricmp(prop, "port") == 0) {
+		lua_pushinteger(L, service->getBindPort());
+	}
+	else if (stricmp(prop, "needChecksum") == 0) {
+		lua_pushboolean(L, service->needChecksum());
+	}
+	else if (stricmp(prop, "name") == 0) {
+		lua_pushstring(L, service->getName().c_str());
+	}
+	else lua_pushnil(L);
+
+	return 1;
+}
+
+int networkservice_getname(lua_State *L) {
+	auto service = checkNetworkService(L);
+
+	lua_pushstring(L, service->getName().c_str());
+
+	return 1;
+}
+
+int networkservice_setbindings(lua_State *L) {
+	auto service = checkNetworkService(L);
+	auto address = luaL_checkstring(L, 2);
+	auto port = (unsigned short)luaL_checkinteger(L, 3);
+
+	service->bindAddress = address;
+	service->bindPort = port;
+
+	return 0;
+}
+
+int networkservice_unregister(lua_State *L) {
+	auto service = checkNetworkService(L);
+
+	lua_pushboolean(L, network->unregisterService(service->shared_from_this()));
+
+	return 1;
+}
+
+int networkservice_gc(lua_State *L) {
+	auto service = checkNetworkService(L);
+
+	service->~LuaNetworkService();
+
+	return 0;
+}
+
+const luaL_Reg networkServiceFunctions[] = {
+	{ "__gc", networkservice_gc },
+	{ "__tostring", networkservice_tostring },
+	{ "__newindex", networkservice_setprop },
+	{ "__index", networkservice_getprop },
+	{ "name", networkservice_getname },
+	{ "bind", networkservice_setbindings },
+	{ "unregister", networkservice_unregister },
+	{ NULL, NULL }
+};
+
+int networkservice_new(lua_State *L) {
+	auto name = luaL_checkstring(L, 1);
+
+	auto service = new (lua_newuserdata(L, sizeof LuaNetworkService)) LuaNetworkService;
+	service->initialize(L, name);
+
+	luaL_getmetatable(L, "PhoenixTibia.NetworkService");
+	lua_setmetatable(L, -2);
+
+	return 1;
+}
+
+const luaL_Reg networkServiceLib[] = {
+	{ "new", networkservice_new },
+	{ NULL, NULL }
+};
+
+int networkservice_registerLib(lua_State *L)
+{
+	createMetatable(L, "PhoenixTibia.NetworkService", networkServiceFunctions);
+
+	luaL_newlib(L, networkServiceLib);
+
+	return 1;
+}
+
+int packet_getprop(lua_State *L) {
+	auto packet = checkPacket(L);
+	auto prop = luaL_checkstring(L, 2);
+	lua_pop(L, 2);
+
+	if (stricmp(prop, "size") == 0) {
+		lua_pushinteger(L, packet->size());
+	}
+	else if (stricmp(prop, "position") == 0) {
+		lua_pushinteger(L, packet->pos());
+	}
+	else if (stricmp(prop, "start") == 0) {
+		lua_pushinteger(L, packet->start());
+	}
+	else lua_pushnil(L);
+
+	return 1;
+}
+
+int packet_setprop(lua_State *L) {
+	auto packet = checkPacket(L);
+	auto prop = luaL_checkstring(L, 2);
+
+	if (stricmp(prop, "size") == 0) {
+		auto size = luaL_checkinteger(L, 3);
+		packet->size(size);
+	}
+	else if (stricmp(prop, "position") == 0) {
+		auto pos = luaL_checkinteger(L, 3);
+		packet->pos(pos);
+	}
+
+	lua_pop(L, 3);
+
+	return 0;
+}
+
+int packet_gc(lua_State *L) {
+	auto packet = checkPacket(L);
+	lua_pop(L, 1);
+
+	packet->~Packet();
+
+	return 0;
+}
+
+int packet_reset(lua_State *L) {
+	auto packet = checkPacket(L);
+	lua_pop(L, 1);
+
+	packet->reset();
+
+	return 0;
+}
+
+template <typename T>
+int packet_peekInteger(lua_State *L) {
+	auto packet = checkPacket(L);
+	lua_pop(L, 1);
+
+	lua_pushinteger(L, packet->peek<T>());
+
+	return 1;
+}
+
+int packet_peekString(lua_State *L) {
+	auto packet = checkPacket(L);
+	lua_pop(L, 1);
+
+	lua_pushstring(L, packet->peek<std::string>().c_str());
+
+	return 1;
+}
+
+template <typename T>
+int packet_popInteger(lua_State *L) {
+	auto packet = checkPacket(L);
+	lua_pop(L, 1);
+
+	lua_pushinteger(L, packet->pop<T>());
+
+	return 1;
+}
+
+int packet_popString(lua_State *L) {
+	auto packet = checkPacket(L);
+	lua_pop(L, 1);
+
+	lua_pushstring(L, packet->pop<std::string>().c_str());
+
+	return 1;
+}
+
+template <typename T>
+int packet_pushInteger(lua_State *L) {
+	auto packet = checkPacket(L);
+	auto value = luaL_checkinteger(L, 2);
+	lua_pop(L, 2);
+
+	packet->push<T>(value);
+
+	return 0;
+}
+
+int packet_pushString(lua_State *L) {
+	auto packet = checkPacket(L);
+	auto value = luaL_checkstring(L, 2);
+	lua_pop(L, 2);
+
+	packet->push<std::string>(value);
+
+	return 0;
+}
+
+const luaL_Reg packetFunctions[] = {
+	{ "__index", packet_getprop },
+	{ "__newindex", packet_setprop },
+	{ "__gc", packet_gc },
+
+	{ "reset", packet_reset },
+
+	{ "peekU8", packet_peekInteger<uint8_t> },
+	{ "peekU16", packet_peekInteger<uint16_t> },
+	{ "peekU32", packet_peekInteger<uint32_t> },
+	{ "peekS8", packet_peekInteger<int8_t> },
+	{ "peekS16", packet_peekInteger<int16_t> },
+	{ "peekS32", packet_peekInteger<int32_t> },
+	{ "peekString", packet_peekString },
+
+	{ "popU8", packet_popInteger<uint8_t> },
+	{ "popU16", packet_popInteger<uint16_t> },
+	{ "popU32", packet_popInteger<uint32_t> },
+	{ "popS8", packet_popInteger<int8_t> },
+	{ "popS16", packet_popInteger<int16_t> },
+	{ "popS32", packet_popInteger<int32_t> },
+	{ "popString", packet_popString },
+
+	{ "pushU8", packet_peekInteger<uint8_t> },
+	{ "pushU16", packet_peekInteger<uint16_t> },
+	{ "pushU32", packet_peekInteger<uint32_t> },
+	{ "pushS8", packet_peekInteger<int8_t> },
+	{ "pushS16", packet_peekInteger<int16_t> },
+	{ "pushS32", packet_peekInteger<int32_t> },
+	{ "pushString", packet_peekString },
+
+	{ NULL, NULL }
+};
+
+int packet_new(lua_State *L) {
+	auto packet = new (lua_newuserdata(L, sizeof Packet)) Packet;
+
+	luaL_getmetatable(L, "PhoenixTibia.Packet");
+	lua_setmetatable(L, -2);
+
+	return 1;
+}
+
+int lua_pushpacket(lua_State *L, Packet* packet)
+{
+	lua_pushlightuserdata(L, packet);
+
+	luaL_getmetatable(L, "PhoenixTibia.Packet");
+	lua_setmetatable(L, -2);
+
+	return 1;
+}
+
+const luaL_Reg packetLib[] = {
+	{ "new", packet_new },
+	{ NULL, NULL }
+};
+
+int packet_registerLib(lua_State *L)
+{
+	createMetatable(L, "PhoenixTibia.Packet", packetFunctions);
+
+	luaL_newlib(L, packetLib);
+
+	return 1;
+}
+
+int lua_pushpacketserializable(lua_State *L, PacketSerializable* data)
+{
+
+}
+
+int connection_gc(lua_State *L)
+{
+	auto connection = checkNetworkConnection(L);
+	lua_pop(L, 1);
+
+	if (connection->isLua())
+		connection->~NetworkConnection();
+
+	return 0;
+}
+
+int connection_close(lua_State *L)
+{
+	auto connection = checkNetworkConnection(L);
+
+	connection->close();
+
+	return 0;
+}
+
+int connection_send(lua_State *L)
+{
+	auto connection = checkNetworkConnection(L);
+	auto packet = std::shared_ptr<Packet>(new Packet((Packet*)lua_touserdata(L, 2)));
+	
+	connection->send(packet);
+
+	return 0;
+}
+
+int connection_getLastChecksum(lua_State *L)
+{
+	auto connection = checkNetworkConnection(L);
+	lua_pop(L, 1);
+
+	lua_pushinteger(L, connection->getLastChecksum());
+
+	return 1;
+}
+
+int connection_setKeys(lua_State *L)
+{
+	auto connection = checkNetworkConnection(L);
+	std::array<uint32_t, 4> keys;
+
+	if (lua_gettop(L) >= 5) {
+		for (int i = 0; i < 4; ++i) {
+			keys[i] = (uint32_t)lua_tointeger(L, 2 + i);
+		}
+		lua_pop(L, 5);
+	}
+	else {
+		luaL_checktype(L, 2, LUA_TTABLE);
+		for (int i = 0; i < 4; ++i) {
+			lua_pushinteger(L, i + 1);
+			lua_gettable(L, 2);
+			keys[i] = (uint32_t)lua_tointeger(L, -1);
+			lua_pop(L, 1);
+		}
+		lua_pop(L, 2);
+	}
+
+	connection->setKeys(keys);
+
+	return 0;
+}
+
+const luaL_Reg connectionFunctions[] = {
+	{ "__gc", connection_gc },
+	{ "close", connection_close },
+	{ "send", connection_send },
+	{ "getLastChecksum", connection_getLastChecksum },
+	{ "setKeys", connection_setKeys },
+	{ NULL, NULL }
+};
+
+int connection_new(lua_State *L) 
+{
+	auto connection = new (lua_newuserdata(L, sizeof NetworkConnection)) NetworkConnection(network->getIoService(), true);
+
+	luaL_getmetatable(L, "PhoenixTibia.Connection");
+	lua_setmetatable(L, -2);
+
+	return 1;
+}
+
+int lua_pushconnection(lua_State *L, NetworkConnection* connection)
+{
+	lua_pushlightuserdata(L, connection);
+
+	luaL_getmetatable(L, "PhoenixTibia.Connection");
+	lua_setmetatable(L, -2);
+
+	return 1;
+}
+
+const luaL_Reg connectionLib[] = {
+	{ "new", connection_new },
+	{ NULL, NULL }
+};
+
+int connection_registerLib(lua_State *L)
+{
+	createMetatable(L, "PhoenixTibia.Connecion", connectionFunctions);
+
+	luaL_newlib(L, connectionLib);
+
+	return 1;
+}
+
+int network_register(lua_State *L)
+{
+	auto service = checkNetworkService(L);
+
+	lua_pushboolean(L, network->registerService(std::shared_ptr<NetworkService>(service)));
+
+	return 1;
+}
+
+int network_unregister(lua_State *L)
+{
+	auto service = lua_tostring(L, 1);
+	lua_pop(L, 1);
+
+	lua_pushboolean(L, network->unregisterService(service));
+	return 1;
+}
+
+int network_start(lua_State *L)
+{
+	network->start();
+
+	return 0;
+}
+
 int network_stop(lua_State *L)
 {
 	network->stop();
@@ -358,13 +941,30 @@ int network_stop(lua_State *L)
 	return 0;
 }
 
+int network_restart(lua_State *L)
+{
+	network->restart();
+
+	return 0;
+}
+
 const luaL_Reg networkLib[] = {
+	{ "register", network_register },
+	{ "unregister", network_unregister },
+	{ "start", network_start },
 	{ "stop", network_stop },
+	{ "restart", network_restart },
 	{ NULL, NULL }
 };
 
-int network_register(lua_State *L)
+int network_registerLib(lua_State *L)
 {
+	luaL_requiref(L, "packet", packet_registerLib, 1);
+	lua_pop(L, 1);
+	luaL_requiref(L, "connection", connection_registerLib, 1);
+	lua_pop(L, 1);
+	luaL_requiref(L, "networkservice", networkservice_registerLib, 1);
+	lua_pop(L, 1);
 	luaL_newlib(L, networkLib);
 	return 1;
 }
@@ -375,6 +975,7 @@ void Script::registerFunctions()
 	lua_pop(L, 1);
 	luaL_requiref(L, "manager", manager_register, 1);
 	lua_pop(L, 1);
-	luaL_requiref(L, "network", network_register, 1);
+	luaL_requiref(L, "network", network_registerLib, 1);
 	lua_pop(L, 1);
 }
+

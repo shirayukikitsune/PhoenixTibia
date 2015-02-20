@@ -1,6 +1,8 @@
 #include "InterserverClient.h"
-#include "Settings.h"
+
 #include "Packet.h"
+#include "Script.h"
+#include "Settings.h"
 
 #include <iostream>
 #include <sstream>
@@ -10,11 +12,132 @@
 #include <openssl/hmac.h>
 
 extern std::weak_ptr<Settings> g_settings;
+extern std::weak_ptr<Script> g_script;
+extern std::shared_ptr<InterserverClient> g_client;
 
 using boost::asio::ip::tcp;
 
+Capability lua_tocapability(lua_State *L, int index)
+{
+	Capability out;
+
+	lua_pushstring(L, "name");
+	lua_gettable(L, index);
+	out.name = lua_tostring(L, -1);
+	lua_pop(L, 1);
+
+	lua_pushstring(L, "serviceAddress");
+	lua_gettable(L, index);
+	if (lua_isstring(L, -1)) {
+		out.serviceEndpoint.address(boost::asio::ip::address::from_string(lua_tostring(L, -1)));
+	}
+	lua_pop(L, 1);
+
+	lua_pushstring(L, "servicePort");
+	lua_gettable(L, index);
+	if (lua_isnumber(L, -1)) {
+		out.serviceEndpoint.port((unsigned short)lua_tointeger(L, -1));
+	}
+	lua_pop(L, 1);
+
+	return out;
+}
+
+PacketSerializable* lua_topacketserializable(lua_State *L, int index)
+{
+
+}
+
+int interserverclient_addCapability(lua_State *L)
+{
+	g_client->addCapability(lua_tocapability(L, 1));
+
+	return 0;
+}
+
+int interserverclient_removeCapability(lua_State *L)
+{
+	g_client->removeCapability(lua_tocapability(L, 1));
+
+	return 0;
+}
+
+int interserverclient_requestNotify(lua_State *L)
+{
+	Capability cap = lua_tocapability(L, 1);
+	lua_remove(L, 1);
+	lua_State *thread = lua_newthread(L);
+	
+	auto notifyCallback = [thread](bool status) {
+		lua_pushboolean(thread, status);
+
+		lua_pcall(thread, 1, 0, 0); 
+
+		lua_close(thread);
+	};
+
+	g_client->requestNotify(cap, notifyCallback);
+
+	return 0;
+}
+
+int interserverclient_requestPacketSerializable(lua_State *L)
+{
+	Capability cap = lua_tocapability(L, 1);
+	lua_remove(L, 1);
+	std::string className = lua_tostring(L, 1);
+	lua_remove(L, 1);
+	lua_State *thread = lua_newthread(L);
+
+	auto callback = [thread](PacketPtr packet) {
+		lua_pushpacket(thread, packet.get());
+
+		lua_pcall(thread, 1, 0, 0);
+	};
+
+	g_client->requestPacketSerializable(cap, className, callback);
+
+	return 0;
+}
+
+int interserverclient_registerPacketSerializableHandler(lua_State *L)
+{
+	std::string className = lua_tostring(L, 1);
+	lua_remove(L, 1);
+	lua_State *thread = lua_newthread(L);
+
+	auto callback = [thread](PacketPtr packet) {
+		lua_pushpacket(thread, packet.get());
+
+		lua_pcall(thread, 1, 0, 0);
+	};
+
+	g_client->registerPacketSerializableHandler(className, callback);
+
+	return 0;
+}
+
+const luaL_Reg interserverClientLib[] = {
+	{ "addCapability", interserverclient_addCapability },
+	{ "removeCapability", interserverclient_removeCapability },
+	{ "requestNotify", interserverclient_requestNotify },
+	{ "requestPacketSerializable", interserverclient_requestPacketSerializable },
+	{ "registerPacketSerializableHandler", interserverclient_registerPacketSerializableHandler },
+	{ NULL, NULL }
+};
+
+int interserverclient_registerLib(lua_State *L)
+{
+	if (auto script = g_script.lock()) {
+		luaL_newlib(script->getEnv(), interserverClientLib);
+		return 1;
+	}
+
+	return 0;
+}
+
 InterserverClient::InterserverClient(boost::asio::io_service &ioService)
-: NetworkConnection(ioService), m_keepalive(ioService)
+	: NetworkConnection(ioService), m_keepalive(ioService)
 {
 }
 
@@ -23,6 +146,14 @@ InterserverClient::~InterserverClient()
 {
 }
 
+
+void InterserverClient::initialize()
+{
+	if (auto script = g_script.lock()) {
+		luaL_requiref(script->getEnv(), "interserverclient", interserverclient_registerLib, 1);
+		lua_pop(script->getEnv(), 1);
+	}
+}
 
 void InterserverClient::startConnect()
 {
@@ -50,7 +181,10 @@ void InterserverClient::connect()
 
 					PacketPtr packet(new Packet);
 
-					packet->push<uint8_t>(0xF1).push<std::string>(username).push<std::string>(password);
+					packet->push<uint8_t>(0xF1)
+						.push<uint16_t>(protocolVersion)
+						.push<std::string>(username)
+						.push<std::string>(password);
 
 					send(packet, [this](boost::system::error_code ec, size_t) {
 						if (ec) std::cout << "InterserverClient::async_write error: " << ec.message() << std::endl;
@@ -133,6 +267,28 @@ void InterserverClient::requestNotify(const Capability &capability, notification
 	m_notifications[capability].push(callback);
 }
 
+void InterserverClient::requestPacketSerializable(const Capability &capability, const std::string &className, const PacketSerializable& data, requestpacket_t callback)
+{
+	static uint32_t id = 0;
+
+	PacketPtr packet(new Packet);
+	packet->push<uint16_t>(0x0007)
+		.push<PacketSerializable>(capability)
+		.push<uint8_t>((uint8_t)RelayOperation::RequestPacketSerializable)
+		.push<uint32_t>(++id)
+		.push<std::string>(className)
+		.push(data);
+
+	m_relays[id] = callback;
+
+	send(packet);
+}
+
+void InterserverClient::registerPacketSerializableHandler(const std::string& className, requestpackethandler_t handler)
+{
+	m_handlers[className] = handler;
+}
+
 void InterserverClient::sendCapabilityList()
 {
 	if (!m_capabilities.empty()) {
@@ -191,6 +347,49 @@ void InterserverClient::receive()
 				}
 
 				break;
+			}
+			case 0x0007:
+			{
+				uint32_t serverId = packet->pop<uint32_t>();
+				RelayOperation operation = (RelayOperation)packet->pop<uint8_t>();
+				switch (operation) {
+				case RelayOperation::RequestPacketSerializable: {
+					uint32_t clientId = packet->pop<uint32_t>();
+					std::string className = packet->pop<std::string>();
+
+					auto handler = m_handlers.find(className);
+					if (handler == m_handlers.end())
+						break;
+
+					PacketPtr outPacket(new Packet);
+					outPacket->push<uint16_t>(0x0008)
+						.push<uint32_t>(serverId)
+						.push<uint8_t>((uint8_t)RelayOperation::RequestPacketSerializable)
+						.push<uint32_t>(clientId);
+					handler->second(outPacket);
+					send(outPacket);
+
+					m_handlers.erase(handler);
+				}
+				}
+
+				break;
+			}
+			case 0x0008:
+			{
+				RelayOperation operation = (RelayOperation)packet->pop<uint8_t>();
+				switch (operation) {
+				case RelayOperation::RequestPacketSerializable: {
+					uint32_t clientId = packet->pop<uint32_t>();
+
+					auto relay = m_relays.find(clientId);
+					if (relay != m_relays.end())
+						relay->second(packet);
+					break;
+
+					m_relays.erase(relay);
+				}
+				}
 			}
 			}
 

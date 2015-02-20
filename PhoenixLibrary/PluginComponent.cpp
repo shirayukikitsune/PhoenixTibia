@@ -67,7 +67,7 @@ bool PluginComponent::internalLoad(std::shared_ptr<ComponentManager> manager, st
 		}
 
 #ifdef _DEBUG
-		if (s.length() < 6 || s.substr(0, s.length() - 6).compare("-debug") != 0) s.append("-debug");
+		if (s.length() < 6 || s.substr(s.length() - 6).compare("-debug") != 0) s.append("-debug");
 #endif
 
 		std::shared_ptr<Plugin> plugin(new Plugin(s));
@@ -97,10 +97,12 @@ bool PluginComponent::internalLoad(std::shared_ptr<ComponentManager> manager, st
 			}
 		}
 
-		plugin->initialize();
 		std::cout << ">> Plugin " << plugin->getId() << " initialized" << std::endl;
 		m_plugins[plugin->getId()] = plugin;
 	}
+
+	for (auto &&plugin : m_plugins)
+		plugin.second->initialize();
 
 	return true;
 }

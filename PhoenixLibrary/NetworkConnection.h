@@ -16,7 +16,7 @@ public:
 	enum { readTimeout = 10000 };
 	typedef std::function<void(std::shared_ptr<Packet>, boost::system::error_code)> ReadHandler;
 
-	NetworkConnection(boost::asio::io_service &ioService);
+	NetworkConnection(boost::asio::io_service &ioService, bool isLua = false);
 	~NetworkConnection();
 
 	virtual void close();
@@ -33,6 +33,8 @@ public:
 
 	void setKeys(std::array<uint32_t, 4> &keys);
 
+	bool isLua() const { return m_isLua; }
+
 private:
 	boost::asio::deadline_timer m_timeout;
 	boost::asio::ip::tcp::socket m_socket;
@@ -42,6 +44,7 @@ private:
 	uint32_t m_checksum;
 	std::array<uint32_t, 4> m_keys;
 	bool m_hasKeys;
+	bool m_isLua;
 	
 	void handleHeader(boost::system::error_code error);
 	void handleBody(boost::system::error_code error);

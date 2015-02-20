@@ -27,6 +27,9 @@ class Capability
 {
 public:
 	Capability() {}
+	Capability(const std::string &_name)
+		: name(_name) {
+	}
 	Capability(const std::string &_name, boost::asio::ip::tcp::endpoint _ep, std::weak_ptr<NetworkConnection> _c)
 		: name(_name), connection(_c) {
 		serviceEndpoint = _ep;
