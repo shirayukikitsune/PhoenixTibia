@@ -1,6 +1,7 @@
 #pragma once
 
-#include <map>
+#include <algorithm>
+#include <deque>
 #include <memory>
 
 #include "Callback.h"
@@ -63,15 +64,14 @@ public:
 	 */
 	std::shared_ptr<Component> find(const std::string& name)
 	{
-		auto i = m_components.find(name);
+		for (auto i = m_components.begin(); i != m_components.end(); ++i)
+			if (i->first.compare(name) == 0)
+				return i->second;
 
-		if (i == m_components.end())
-			return nullptr;
-
-		return i->second;
+		return nullptr;
 	}
 
 private:
-	std::map<std::string, std::shared_ptr<Component>> m_components;
+	std::deque<std::pair<std::string, std::shared_ptr<Component>>> m_components;
 };
 

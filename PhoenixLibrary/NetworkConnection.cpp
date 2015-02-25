@@ -86,7 +86,7 @@ void NetworkConnection::handleHeader(boost::system::error_code error)
 
 		boost::asio::async_read(m_socket, boost::asio::buffer(m_recvPacket.data() + Packet::headerSize, len), std::bind(&NetworkConnection::handleBody, shared_from_this(), std::placeholders::_1));
 	}
-	else unsetTimeout();
+	else beginReading(m_handler);
 }
 
 void NetworkConnection::handleBody(boost::system::error_code error)
@@ -103,7 +103,7 @@ void NetworkConnection::handleBody(boost::system::error_code error)
 		setTimeout(NetworkConnection::readTimeout);
 		m_handler(std::make_shared<Packet>(m_recvPacket), error);
 	}
-	else unsetTimeout();
+	else beginReading(m_handler);
 }
 
 void NetworkConnection::encrypt(std::shared_ptr<Packet> packet)

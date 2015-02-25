@@ -77,6 +77,7 @@ bool Script::initialize(const std::string &path, std::shared_ptr<Settings> setti
 	// Start loading
 	for (auto &file : libs) {
 		if (luaL_dofile(L, file.c_str())) {
+			std::cerr << lua_tostring(L, -1) << std::endl;
 			lua_close(L);
 			L = nullptr;
 			return false;
@@ -216,10 +217,16 @@ LuaNetworkService* checkNetworkService(lua_State *L) {
 	return (LuaNetworkService*)udata;
 }
 
-Packet* checkPacket(lua_State *L) {
-	auto udata = luaL_checkudata(L, 1, "PhoenixTibia.Packet");
-	luaL_argcheck(L, udata != NULL, 1, "`packet' expected");
+Packet* lua_topacket(lua_State *L, int index) {
+	auto udata = luaL_checkudata(L, index, "PhoenixTibia.Packet");
+	luaL_argcheck(L, udata != NULL, index, "`packet' expected");
 	return (Packet*)udata;
+}
+
+PacketSerializable* lua_topacketserializable(lua_State *L, int index) {
+	auto udata = luaL_checkudata(L, index, "PhoenixTibia.PacketSerializable");
+	luaL_argcheck(L, udata != NULL, index, "`packetserializable' expected");
+	return (PacketSerializable*)udata;
 }
 
 NetworkConnection* checkNetworkConnection(lua_State *L) {
@@ -614,7 +621,7 @@ int networkservice_registerLib(lua_State *L)
 }
 
 int packet_getprop(lua_State *L) {
-	auto packet = checkPacket(L);
+	auto packet = lua_topacket(L, 1);
 	auto prop = luaL_checkstring(L, 2);
 	lua_pop(L, 2);
 
@@ -633,7 +640,7 @@ int packet_getprop(lua_State *L) {
 }
 
 int packet_setprop(lua_State *L) {
-	auto packet = checkPacket(L);
+	auto packet = lua_topacket(L, 1);
 	auto prop = luaL_checkstring(L, 2);
 
 	if (stricmp(prop, "size") == 0) {
@@ -651,7 +658,7 @@ int packet_setprop(lua_State *L) {
 }
 
 int packet_gc(lua_State *L) {
-	auto packet = checkPacket(L);
+	auto packet = lua_topacket(L, 1);
 	lua_pop(L, 1);
 
 	packet->~Packet();
@@ -660,7 +667,7 @@ int packet_gc(lua_State *L) {
 }
 
 int packet_reset(lua_State *L) {
-	auto packet = checkPacket(L);
+	auto packet = lua_topacket(L, 1);
 	lua_pop(L, 1);
 
 	packet->reset();
@@ -670,7 +677,7 @@ int packet_reset(lua_State *L) {
 
 template <typename T>
 int packet_peekInteger(lua_State *L) {
-	auto packet = checkPacket(L);
+	auto packet = lua_topacket(L, 1);
 	lua_pop(L, 1);
 
 	lua_pushinteger(L, packet->peek<T>());
@@ -679,7 +686,7 @@ int packet_peekInteger(lua_State *L) {
 }
 
 int packet_peekString(lua_State *L) {
-	auto packet = checkPacket(L);
+	auto packet = lua_topacket(L, 1);
 	lua_pop(L, 1);
 
 	lua_pushstring(L, packet->peek<std::string>().c_str());
@@ -689,7 +696,7 @@ int packet_peekString(lua_State *L) {
 
 template <typename T>
 int packet_popInteger(lua_State *L) {
-	auto packet = checkPacket(L);
+	auto packet = lua_topacket(L, 1);
 	lua_pop(L, 1);
 
 	lua_pushinteger(L, packet->pop<T>());
@@ -698,7 +705,7 @@ int packet_popInteger(lua_State *L) {
 }
 
 int packet_popString(lua_State *L) {
-	auto packet = checkPacket(L);
+	auto packet = lua_topacket(L, 1);
 	lua_pop(L, 1);
 
 	lua_pushstring(L, packet->pop<std::string>().c_str());
@@ -708,7 +715,7 @@ int packet_popString(lua_State *L) {
 
 template <typename T>
 int packet_pushInteger(lua_State *L) {
-	auto packet = checkPacket(L);
+	auto packet = lua_topacket(L, 1);
 	auto value = luaL_checkinteger(L, 2);
 	lua_pop(L, 2);
 
@@ -718,7 +725,7 @@ int packet_pushInteger(lua_State *L) {
 }
 
 int packet_pushString(lua_State *L) {
-	auto packet = checkPacket(L);
+	auto packet = lua_topacket(L, 1);
 	auto value = luaL_checkstring(L, 2);
 	lua_pop(L, 2);
 
@@ -728,8 +735,8 @@ int packet_pushString(lua_State *L) {
 }
 
 const luaL_Reg packetFunctions[] = {
-	{ "__index", packet_getprop },
-	{ "__newindex", packet_setprop },
+	//{ "__index", packet_getprop },
+	//{ "__newindex", packet_setprop },
 	{ "__gc", packet_gc },
 
 	{ "reset", packet_reset },
@@ -750,13 +757,13 @@ const luaL_Reg packetFunctions[] = {
 	{ "popS32", packet_popInteger<int32_t> },
 	{ "popString", packet_popString },
 
-	{ "pushU8", packet_peekInteger<uint8_t> },
-	{ "pushU16", packet_peekInteger<uint16_t> },
-	{ "pushU32", packet_peekInteger<uint32_t> },
-	{ "pushS8", packet_peekInteger<int8_t> },
-	{ "pushS16", packet_peekInteger<int16_t> },
-	{ "pushS32", packet_peekInteger<int32_t> },
-	{ "pushString", packet_peekString },
+	{ "pushU8", packet_pushInteger<uint8_t> },
+	{ "pushU16", packet_pushInteger<uint16_t> },
+	{ "pushU32", packet_pushInteger<uint32_t> },
+	{ "pushS8", packet_pushInteger<int8_t> },
+	{ "pushS16", packet_pushInteger<int16_t> },
+	{ "pushS32", packet_pushInteger<int32_t> },
+	{ "pushString", packet_pushString },
 
 	{ NULL, NULL }
 };
@@ -794,9 +801,79 @@ int packet_registerLib(lua_State *L)
 	return 1;
 }
 
+int packetserializable_gc(lua_State *L)
+{
+	PacketSerializable* data = lua_topacketserializable(L, 1);
+
+	if (!lua_islightuserdata(L, 1)) {
+		data->~PacketSerializable();
+	}
+
+	return 0;
+}
+
+int packetserializable_write(lua_State *L)
+{
+	PacketSerializable* data = lua_topacketserializable(L, 1);
+	Packet* packet = lua_topacket(L, 2);
+
+	data->write(*packet);
+
+	return 0;
+}
+
+int packetserializable_read(lua_State *L)
+{
+	PacketSerializable* data = lua_topacketserializable(L, 1);
+	Packet* packet = lua_topacket(L, 2);
+
+	data->read(*packet);
+
+	return 0;
+}
+
+const luaL_Reg packetserializableFunctions[] = {
+	{ "__gc", packetserializable_gc },
+
+	{ "write", packetserializable_write },
+	{ "read", packetserializable_read },
+	{ NULL, NULL }
+};
+
+int packetserializable_new(lua_State *L)
+{
+	LuaPacketSerializable* packet = new (lua_newuserdata(L, sizeof(LuaPacketSerializable))) LuaPacketSerializable;
+	packet->initialize(L);
+
+	luaL_getmetatable(L, "PhoenixTibia.PacketSerializable");
+	lua_setmetatable(L, -2);
+
+	return 1;
+}
+
 int lua_pushpacketserializable(lua_State *L, PacketSerializable* data)
 {
+	lua_pushlightuserdata(L, data);
 
+	luaL_getmetatable(L, "PhoenixTibia.PacketSerializable");
+	lua_setmetatable(L, -2);
+
+	return 1;
+}
+
+const luaL_Reg packetserializableLib[] =
+{
+	{ "new", packetserializable_new },
+	{ NULL, NULL }
+};
+
+int packetserializable_registerLib(lua_State *L)
+{
+	createMetatable(L, "PhoenixTibia.PacketSerializable", packetserializableFunctions);
+
+	luaL_newlib(L, packetserializableLib);
+
+	return 1;
 }
 
 int connection_gc(lua_State *L)
@@ -959,6 +1036,8 @@ const luaL_Reg networkLib[] = {
 
 int network_registerLib(lua_State *L)
 {
+	luaL_requiref(L, "packetserializable", packetserializable_registerLib, 1);
+	lua_pop(L, 1);
 	luaL_requiref(L, "packet", packet_registerLib, 1);
 	lua_pop(L, 1);
 	luaL_requiref(L, "connection", connection_registerLib, 1);
@@ -977,5 +1056,7 @@ void Script::registerFunctions()
 	lua_pop(L, 1);
 	luaL_requiref(L, "network", network_registerLib, 1);
 	lua_pop(L, 1);
+
+	requestRegisterFunctions(L);
 }
 

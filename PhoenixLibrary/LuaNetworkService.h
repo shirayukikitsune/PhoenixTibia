@@ -52,6 +52,9 @@ class LuaPacketSerializable :
 	public PacketSerializable,
 	public LuaRunnable
 {
+public:
 	virtual void read(Packet &packet);
 	virtual void write(Packet &packet) const;
+
+	void initialize(lua_State *L);
 };

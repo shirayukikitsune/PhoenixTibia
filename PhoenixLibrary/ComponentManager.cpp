@@ -22,11 +22,11 @@ void ComponentManager::registerDefaultComponents()
 {
 	std::cout << "> Registering default components" << std::endl;
 
-	std::shared_ptr<Component> component(new ScriptComponent);
+	std::shared_ptr<Component> component(new LoggerComponent);
+	this->registerComponent(component);
+	component.reset(new ScriptComponent);
 	this->registerComponent(component);
 	component.reset(new PluginComponent);
-	this->registerComponent(component);
-	component.reset(new LoggerComponent);
 	this->registerComponent(component);
 }
 
@@ -40,11 +40,14 @@ void ComponentManager::registerComponent(std::shared_ptr<Component> component)
 	std::cout << ">> Registering component: " << component->getName() << std::endl;
 
 	// Check if we have a component with the same name registered
-	auto i = m_components.find(component->getName());
+	auto i = m_components.begin();
+	for (; i != m_components.end(); ++i)
+		if (i->first.compare(component->getName()) == 0)
+			break;
 
 	if (i == m_components.end()) {
 		// Not registered, then register!
-		m_components.emplace(component->getName(), component);
+		m_components.emplace_back(component->getName(), component);
 	}
 	else {
 		// Already registered; then unload the previous component and register this

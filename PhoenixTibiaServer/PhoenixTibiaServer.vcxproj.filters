@@ -26,6 +26,7 @@
     <None Include="data\scripts\test.lua" />
     <None Include="login_config.lua" />
     <None Include="data\scripts\account-service.lua" />
+    <None Include="account_config.lua" />
   </ItemGroup>
   <ItemGroup>
     <Xml Include="data\plugins\plugins.xml" />

@@ -27,15 +27,13 @@ PLUGIN_ONLOADING
 	if (auto manager = g_manager.lock()) {
 		g_readyCallback = manager->OnServerReady.push([]() {
 			g_client->connect();
-
-			if (auto manager = g_manager.lock()) {
-				auto script = manager->find("script");
-				if (script) {
-					g_script = script->asScript()->getScript();
-					g_client->initialize();
-				}
-			}
 		});
+
+		auto script = manager->find("script");
+		if (script) {
+			g_script = script->asScript()->getScript();
+			g_client->initialize();
+		}
 	}
 
 	return true;

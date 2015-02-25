@@ -96,3 +96,8 @@ void LuaPacketSerializable::write(Packet &packet) const
 
 	lua_pcall(L, 1, 0, 0);
 }
+
+void LuaPacketSerializable::initialize(lua_State *L)
+{
+	this->L = L;
+}

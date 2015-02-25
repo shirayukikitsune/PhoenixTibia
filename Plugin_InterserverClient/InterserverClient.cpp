@@ -43,11 +43,6 @@ Capability lua_tocapability(lua_State *L, int index)
 	return out;
 }
 
-PacketSerializable* lua_topacketserializable(lua_State *L, int index)
-{
-
-}
-
 int interserverclient_addCapability(lua_State *L)
 {
 	g_client->addCapability(lua_tocapability(L, 1));
@@ -62,18 +57,53 @@ int interserverclient_removeCapability(lua_State *L)
 	return 0;
 }
 
+void createInterserverclientTable(lua_State *L, const char* fieldname, const char* subfield)
+{
+	int start = lua_gettop(L);
+	// push manager table
+	lua_getglobal(L, "interserverclient");
+	// try to get the function table
+	lua_pushstring(L, fieldname);
+	lua_rawget(L, start + 1);
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 1);
+		// Create the key
+		lua_newtable(L);
+		lua_setfield(L, start + 1, fieldname);
+		// push the value to the stack
+		lua_getfield(L, start + 1, fieldname);
+	}
+	lua_pushstring(L, subfield);
+	lua_pushvalue(L, start);
+	lua_rawset(L, start + 2);
+	lua_pop(L, lua_gettop(L) - start);
+}
+
+auto getFunction = [](lua_State *L, int index, const char *type, const char *sub) {
+	int start = lua_gettop(L);
+	lua_getglobal(L, "interserverclient");
+	lua_pushstring(L, type);
+	lua_rawget(L, -2);
+	if (lua_istable(L, -1)) {
+		lua_pushstring(L, sub);
+		lua_rawget(L, -2);
+
+		lua_insert(L, start + 1);
+	}
+	lua_pop(L, lua_gettop(L) - start - 1);
+};
+
 int interserverclient_requestNotify(lua_State *L)
 {
 	Capability cap = lua_tocapability(L, 1);
 	lua_remove(L, 1);
-	lua_State *thread = lua_newthread(L);
+	createInterserverclientTable(L, "notify", cap.name.c_str());
 	
-	auto notifyCallback = [thread](bool status) {
-		lua_pushboolean(thread, status);
+	auto notifyCallback = [L, cap](bool status) {
+		getFunction(L, 1, "notify", cap.name.c_str());
+		lua_pushboolean(L, status);
 
-		lua_pcall(thread, 1, 0, 0); 
-
-		lua_close(thread);
+		lua_pcall(L, 1, 0, 0); 
 	};
 
 	g_client->requestNotify(cap, notifyCallback);
@@ -87,15 +117,19 @@ int interserverclient_requestPacketSerializable(lua_State *L)
 	lua_remove(L, 1);
 	std::string className = lua_tostring(L, 1);
 	lua_remove(L, 1);
-	lua_State *thread = lua_newthread(L);
+	PacketSerializable *data = lua_topacketserializable(L, 1);
+	lua_remove(L, 1);
+	createInterserverclientTable(L, "request", className.c_str());
 
-	auto callback = [thread](PacketPtr packet) {
-		lua_pushpacket(thread, packet.get());
+	auto callback = [L, className](PacketPtr packet) {
+		getFunction(L, 1, "request", className.c_str());
 
-		lua_pcall(thread, 1, 0, 0);
+		lua_pushpacket(L, packet.get());
+
+		lua_pcall(L, 1, 0, 0);
 	};
 
-	g_client->requestPacketSerializable(cap, className, callback);
+	g_client->requestPacketSerializable(cap, className, *data, callback);
 
 	return 0;
 }
@@ -104,12 +138,19 @@ int interserverclient_registerPacketSerializableHandler(lua_State *L)
 {
 	std::string className = lua_tostring(L, 1);
 	lua_remove(L, 1);
-	lua_State *thread = lua_newthread(L);
+	createInterserverclientTable(L, "handler", className.c_str());
 
-	auto callback = [thread](PacketPtr packet) {
-		lua_pushpacket(thread, packet.get());
+	auto callback = [L, className](PacketPtr inpacket, PacketPtr outpacket) {
+		getFunction(L, 1, "handler", className.c_str());
 
-		lua_pcall(thread, 1, 0, 0);
+		lua_pushpacket(L, inpacket.get());
+		lua_pushpacket(L, outpacket.get());
+
+		if (lua_pcall(L, 2, 0, 0))
+		{
+			std::cout << lua_tostring(L, -1) << std::endl;
+		}
+
 	};
 
 	g_client->registerPacketSerializableHandler(className, callback);
@@ -277,7 +318,7 @@ void InterserverClient::requestPacketSerializable(const Capability &capability, 
 		.push<uint8_t>((uint8_t)RelayOperation::RequestPacketSerializable)
 		.push<uint32_t>(++id)
 		.push<std::string>(className)
-		.push(data);
+		.push<PacketSerializable>(data);
 
 	m_relays[id] = callback;
 
@@ -332,6 +373,10 @@ void InterserverClient::receive()
 {
 	beginReading([this](PacketPtr packet, boost::system::error_code e) {
 		if (!e) {
+			uint32_t checksum = packet->pop<uint32_t>();
+			if (this->getLastChecksum() != checksum)
+				return;
+
 			uint16_t handle = packet->pop<uint16_t>();
 
 			switch (handle) {
@@ -366,7 +411,7 @@ void InterserverClient::receive()
 						.push<uint32_t>(serverId)
 						.push<uint8_t>((uint8_t)RelayOperation::RequestPacketSerializable)
 						.push<uint32_t>(clientId);
-					handler->second(outPacket);
+					handler->second(packet, outPacket);
 					send(outPacket);
 
 					m_handlers.erase(handler);

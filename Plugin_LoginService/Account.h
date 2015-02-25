@@ -15,13 +15,19 @@ public:
 	~Account();
 
 	virtual void read(Packet &packet);
-	virtual void write(Packet &packet);
+	virtual void write(Packet &packet) const;
 
-	const std::string& username();
-	const std::string& password();
+	const std::string& username() const;
+	void username(const std::string &name);
+		
+	const std::string& password() const;
+	void password(const std::string &name);
+
+	bool success() const;
 
 private:
 	std::string m_username;
 	std::string m_password;
+	bool m_success;
 };
 

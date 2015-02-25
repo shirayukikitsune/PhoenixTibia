@@ -94,7 +94,7 @@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>lua-5.3.lib;libiconv_a.lib;libxml2.lib;libphoenix.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>lua-5.3.lib;libiconv_a.lib;libxml2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -107,7 +107,7 @@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>lua-5.3.lib;libiconv_a.lib;libxml2.lib;libphoenix.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>lua-5.3.lib;libiconv_a.lib;libxml2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -124,7 +124,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>lua-5.3.lib;libiconv_a.lib;libxml2.lib;libphoenix.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>lua-5.3.lib;libiconv_a.lib;libxml2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -141,7 +141,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>lua-5.3.lib;libiconv_a.lib;libxml2.lib;libphoenix.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>lua-5.3.lib;libiconv_a.lib;libxml2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -149,6 +149,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="account_config.lua" />
     <None Include="data\scripts\account-service.lua" />
     <None Include="login_config.lua" />
     <None Include="config.lua" />

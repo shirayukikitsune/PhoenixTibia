@@ -24,7 +24,7 @@ class EXPORTS InterserverClient
 public:
 	typedef phoenix::callback<false, void(bool)> notification_t;
 	typedef std::function<void(PacketPtr)> requestpacket_t;
-	typedef std::function<void(PacketPtr)> requestpackethandler_t;
+	typedef std::function<void(PacketPtr, PacketPtr)> requestpackethandler_t;
 
 	InterserverClient(boost::asio::io_service &ioService);
 	~InterserverClient();

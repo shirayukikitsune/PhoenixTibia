@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Callback.h"
+
 #include <lua.hpp>
 #include <memory>
 #include <unordered_map>
@@ -29,6 +31,8 @@ public:
 
 	lua_State* getEnv() { return L; }
 
+	phoenix::callback<true, void(lua_State *L)> requestRegisterFunctions;
+
 protected:
 	virtual void registerFunctions();
 
@@ -39,9 +43,9 @@ private:
 
 void copyFunction(lua_State *fromState, lua_State *toState);
 int createMetatable(lua_State *L, const char *tableName, const luaL_Reg *functions);
-Packet* checkPacket(lua_State *L);
+Packet* lua_topacket(lua_State *L, int index);
+PacketSerializable* lua_topacketserializable(lua_State *L, int index);
 NetworkConnection* checkNetworkConnection(lua_State *L);
-PacketSerializable* lua_topacketserializable(lua_State *L);
 int lua_pushpacket(lua_State *L, Packet* packet);
 int lua_pushconnection(lua_State *L, NetworkConnection* connection);
 int lua_pushpacketserializable(lua_State *L, PacketSerializable* data);

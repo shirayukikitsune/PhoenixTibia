@@ -1,5 +1,6 @@
 #include "LoginService.h"
 
+#include "Account.h"
 #include "../Plugin_InterserverClient/InterserverClient.h"
 #include "LoggerComponent.h"
 #include "NetworkConnection.h"
@@ -7,6 +8,7 @@
 #include "Settings.h"
 #include "World.h"
 
+#include <iostream>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -79,44 +81,57 @@ bool LoginService::handleFirst(NetworkConnectionPtr connection, PacketPtr packet
 	std::array<uint32_t, 4> keys = { packet->pop<uint32_t>(), packet->pop<uint32_t>(), packet->pop<uint32_t>(), packet->pop<uint32_t>() };
 	connection->setKeys(keys);
 
-	std::string account = packet->pop<std::string>();
+	std::string accountName = packet->pop<std::string>();
 	std::string password = packet->pop<std::string>();
 
 	if (auto client = g_client.lock()) { 
-		PacketPtr outPacket(new Packet);
+		Account account;
+		account.username(accountName);
+		account.password(password);
+		client->requestPacketSerializable(Capability("account"), "Account", account, [connection](PacketPtr inPacket) {
+			Account account;
+			account.read(*inPacket);
+			if (account.success()) {
+				PacketPtr outPacket(new Packet);
 
-		// Send MOTD
-		outPacket->push<uint8_t>(0x14).push<std::string>("1\nPhoenixTibiaServer v0.1");
+				// Send MOTD
+				outPacket->push<uint8_t>(0x14).push<std::string>("1\nPhoenixTibiaServer v0.1");
 
-		// Send character list
-		outPacket->push<uint8_t>(0x64)
-			// Add Worlds
-			.push<uint8_t>((uint8_t)g_worlds.size());
-		for (auto &&world : g_worlds) {
-			outPacket->push<uint8_t>((uint8_t)world.first)
-				.push<std::string>(world.second->name())
-				.push<std::string>(world.second->endpoint().address().to_string())
-				.push<uint16_t>(world.second->endpoint().port())
-				.push<uint8_t>(0);
-		}
+				// Send character list
+				outPacket->push<uint8_t>(0x64)
+					// Add Worlds
+					.push<uint8_t>((uint8_t)g_worlds.size());
+				for (auto &&world : g_worlds) {
+					outPacket->push<uint8_t>((uint8_t)world.first)
+						.push<std::string>(world.second->name())
+						.push<std::string>(world.second->endpoint().address().to_string())
+						.push<uint16_t>(world.second->endpoint().port())
+						.push<uint8_t>(0);
+				}
 
-		// Add characters
-		outPacket->push<uint8_t>((uint8_t)g_worlds.size());
-		for (auto &&world : g_worlds) {
-			outPacket->push<uint8_t>((uint8_t)world.first)
-				.push<std::string>("Test on " + world.second->name());
-		}
+				// Add characters
+				outPacket->push<uint8_t>((uint8_t)g_worlds.size());
+				for (auto &&world : g_worlds) {
+					outPacket->push<uint8_t>((uint8_t)world.first)
+						.push<std::string>("Test on " + world.second->name());
+				}
 
-		// Add premium days
-		outPacket->push<uint16_t>(0xffff);
+				// Add premium days
+				outPacket->push<uint16_t>(0xffff);
 
-		connection->send(outPacket);
+				connection->send(outPacket, [connection](boost::system::error_code ec, size_t) {
+					connection->close();
+				});
+			}
+			else disconnectClient(connection, 0x0a, "Invalid account name or password.");
+		});
 	}
 	else {
 		disconnectClient(connection, 0x0a, "Internal server error. Please try again later.");
+		return false;
 	}
 
-	return false;
+	return true;
 }
 
 void LoginService::disconnectClient(NetworkConnectionPtr connection, uint8_t error, const std::string& message)
