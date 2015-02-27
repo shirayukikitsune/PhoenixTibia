@@ -33,9 +33,6 @@ end
 function accountHandler(inpacket, outpacket)
     local account = {}
 
-    local putString = function(data) 
-        return 'success: ' .. data.success .. '; name: ' .. data.accountName .. '; pass: ' .. data.password
-    end
     local read = function (data, packet)
         data.success = packet:popU8()
         data.accountName = packet:popString()
@@ -65,9 +62,9 @@ function accountHandler(inpacket, outpacket)
 end
 
 function onServerReady()
-    --if service ~= nil then
+    if service ~= nil then
         interserverclient.registerPacketSerializableHandler('Account', accountHandler)
-    --end
+    end
 end
 
 function onLoaded()
