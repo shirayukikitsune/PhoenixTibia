@@ -1,5 +1,10 @@
 local useSHA1 = true
+local redisParams = {
+    host = '192.168.1.151',
+    port = 6379,
+}
 
+client = nil
 service = nil
 callbacks = {}
 
@@ -49,13 +54,25 @@ function accountHandler(inpacket, outpacket)
     account.success = 0
 
     accountHashed = hashPassword(account.accountName)
-    accountFile = io.open('accounts/'..accountHashed)
 
-    if accountFile ~= nil then
-        local password = accountFile:read('l')
+    if client ~= nil then
+        local accountKey = 'account:' .. accountHashed
+        if client:exists(accountKey) == true then
+            local dbAccount = client:hgetall(accountKey)
 
-        if hashPassword(account.password) == password then
-            account.success = 1
+            if dbAccount.password == hashPassword(account.password) then
+                account.success = 1
+            end
+        end
+    else
+        accountFile = io.open('accounts/'..accountHashed)
+
+        if accountFile ~= nil then
+            local password = accountFile:read('l')
+
+            if hashPassword(account.password) == password then
+                account.success = 1
+            end
         end
     end
     write(account, outpacket)
@@ -78,6 +95,13 @@ function onLoaded()
 
 	callbacks['OnBeforeNetworkStart'] = manager.register(onBeforeNetworkStart, 'OnBeforeNetworkStart')
     callbacks['OnServerReady'] = manager.register(onServerReady, 'OnServerReady')
+
+    print ('Connecting to REDIS')
+    local redis = require('redis')
+    client = redis.connect(redisParams)
+    if client:select(0) == true then
+        print ('REDIS connection success!')
+    end
 end
 
 function onUnloaded()

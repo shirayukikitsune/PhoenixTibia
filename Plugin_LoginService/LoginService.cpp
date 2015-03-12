@@ -74,6 +74,7 @@ bool LoginService::handleFirst(NetworkConnectionPtr connection, PacketPtr packet
 		return false;
 	}
 
+	auto pos = packet->pos();
 	if (!RSAdecrypt(connection, packet)) {
 		return false;
 	}
@@ -83,6 +84,23 @@ bool LoginService::handleFirst(NetworkConnectionPtr connection, PacketPtr packet
 
 	std::string accountName = packet->pop<std::string>();
 	std::string password = packet->pop<std::string>();
+	std::string country;
+	country.append(1, packet->pop<char>()); // $
+	country.append(1, packet->pop<char>());
+	country.append(1, packet->pop<char>());
+	country.append(1, packet->pop<char>());
+	packet->skip(17); // Some CPU details
+	packet->skip(128 - packet->pos() + pos);
+	packet->skip(2); // always 0x0101 ?
+	std::string videoCard = packet->pop<std::string>();
+	std::string videoDriver = packet->pop<std::string>();
+
+	if (!RSAdecrypt(connection, packet)) {
+		return false;
+	}
+
+	std::string authToken = packet->pop<std::string>();
+	bool stayLoggedIn = packet->pop<bool>();
 
 	if (auto client = g_client.lock()) { 
 		Account account;
@@ -145,6 +163,7 @@ void LoginService::disconnectClient(NetworkConnectionPtr connection, uint8_t err
 
 bool LoginService::RSAdecrypt(NetworkConnectionPtr connection, PacketPtr packet)
 {
+	/*
 	if (packet->size() - packet->pos() != 128) {
 		if (g_logger) {
 			std::stringstream ss;
@@ -153,7 +172,7 @@ bool LoginService::RSAdecrypt(NetworkConnectionPtr connection, PacketPtr packet)
 		}
 
 		return false;
-	}
+	}*/
 
 	size_t pos = packet->pos();
 	std::shared_ptr<uint8_t> encData(new uint8_t[128]);
