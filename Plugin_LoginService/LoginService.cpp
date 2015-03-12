@@ -85,22 +85,36 @@ bool LoginService::handleFirst(NetworkConnectionPtr connection, PacketPtr packet
 	std::string accountName = packet->pop<std::string>();
 	std::string password = packet->pop<std::string>();
 	std::string country;
-	country.append(1, packet->pop<char>()); // $
+	country.append(1, packet->pop<char>()); // Always $
+	// 3 letters country code
 	country.append(1, packet->pop<char>());
 	country.append(1, packet->pop<char>());
 	country.append(1, packet->pop<char>());
-	packet->skip(17); // Some CPU details
+
+	// Some CPU details
+	packet->skip(17);
+
+	// Padding bytes
 	packet->skip(128 - packet->pos() + pos);
-	packet->skip(2); // always 0x0101 ?
+	// << ending first RSA block
+
+	// always 0x0101 <-- unknown
+	packet->skip(2); 
+
 	std::string videoCard = packet->pop<std::string>();
 	std::string videoDriver = packet->pop<std::string>();
 
+	// Starting second RSA block
+	pos = packet->pos();
 	if (!RSAdecrypt(connection, packet)) {
 		return false;
 	}
 
 	std::string authToken = packet->pop<std::string>();
 	bool stayLoggedIn = packet->pop<bool>();
+
+	// Padding bytes
+	packet->skip(128 - packet->pos() + pos);
 
 	if (auto client = g_client.lock()) { 
 		Account account;
