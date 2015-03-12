@@ -163,17 +163,6 @@ void LoginService::disconnectClient(NetworkConnectionPtr connection, uint8_t err
 
 bool LoginService::RSAdecrypt(NetworkConnectionPtr connection, PacketPtr packet)
 {
-	/*
-	if (packet->size() - packet->pos() != 128) {
-		if (g_logger) {
-			std::stringstream ss;
-			ss << "Client " + connection->socket().remote_endpoint().address().to_string() + " sent invalid packet size";
-			g_logger->log(LogLevel::Information, ss.str());
-		}
-
-		return false;
-	}*/
-
 	size_t pos = packet->pos();
 	std::shared_ptr<uint8_t> encData(new uint8_t[128]);
 	packet->get(128, encData.get()).pos(pos);
