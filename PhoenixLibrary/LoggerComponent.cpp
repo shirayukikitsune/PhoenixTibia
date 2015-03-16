@@ -2,10 +2,7 @@
 #include "Settings.h"
 
 #include <ctime>
-#include <mutex>
 #include <array>
-#include <locale>
-#include <codecvt>
 
 const std::string& LoggerComponent::getName() const
 {
