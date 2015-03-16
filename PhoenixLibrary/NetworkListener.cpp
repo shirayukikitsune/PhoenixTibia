@@ -132,7 +132,7 @@ void NetworkListener::removeConnection(NetworkConnectionPtr connection)
 void NetworkListener::startAccept()
 {
 	NetworkConnectionPtr connection(new NetworkConnection(m_acceptor.get_io_service()));
-	m_connections.emplace(connection);
+	m_connections.insert(connection);
 	m_acceptor.async_accept(connection->socket(), std::bind(&NetworkListener::handleAccept, shared_from_this(), connection, std::placeholders::_1));
 }
 
