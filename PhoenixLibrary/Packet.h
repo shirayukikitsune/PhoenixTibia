@@ -77,13 +77,6 @@ public:
 		return *this;
 	}
 
-	template <>
-	Packet& push<PacketSerializable>(const PacketSerializable &s) {
-		s.write(*this);
-
-		return *this;
-	}
-
 	Packet& push(const PacketSerializable *s) {
 		s->write(*this);
 
@@ -107,27 +100,11 @@ public:
 		return *(T*)&m_buffer[m_position];
 	}
 
-	template <>
-	std::string peek<std::string>() {
-		uint16_t len = pop<uint16_t>();
-		std::string out((char*)&m_buffer[m_position], len);
-		m_position -= sizeof uint16_t;
-		return out;
-	}
-
 	template <typename T>
 	T pop() {
 		T value = peek<T>();
 		m_position += sizeof (T);
 
-		return value;
-	}
-
-	template <>
-	std::string pop<std::string>() {
-		std::string::size_type s = pop<uint16_t>();
-		std::string value((char*)&m_buffer[m_position], s);
-		m_position += s;
 		return value;
 	}
 
@@ -227,3 +204,40 @@ private:
 	}
 };
 
+template<>
+Packet& Packet::push<std::string>(const std::string &str) {
+	push<uint16_t>((uint16_t)str.length());
+
+	while (m_position + str.length() > m_buffer.size()) {
+		m_buffer.resize(m_buffer.size() + 512, 0);
+	}
+
+	std::memcpy(&m_buffer[m_position], str.c_str(), str.length());
+	m_position += str.length();
+	m_length += str.length();
+
+	return *this;
+}
+
+template <>
+Packet& Packet::push<PacketSerializable>(const PacketSerializable &s) {
+	s.write(*this);
+
+	return *this;
+}
+
+template <>
+std::string Packet::peek<std::string>() {
+	uint16_t len = pop<uint16_t>();
+	std::string out((char*)&m_buffer[m_position], len);
+	m_position -= sizeof uint16_t;
+	return out;
+}
+
+template <>
+std::string Packet::pop<std::string>() {
+	std::string::size_type s = pop<uint16_t>();
+	std::string value((char*)&m_buffer[m_position], s);
+	m_position += s;
+	return value;
+}
