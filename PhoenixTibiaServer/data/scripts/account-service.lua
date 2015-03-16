@@ -1,7 +1,10 @@
 local useSHA1 = true
-local redisParams = {
-    host = '192.168.1.151',
-    port = 6379,
+local redisSettings = {
+    enable = true,
+    params = {
+        host = '192.168.1.151',
+        port = 6379,
+    }
 }
 
 client = nil
@@ -96,11 +99,13 @@ function onLoaded()
 	callbacks['OnBeforeNetworkStart'] = manager.register(onBeforeNetworkStart, 'OnBeforeNetworkStart')
     callbacks['OnServerReady'] = manager.register(onServerReady, 'OnServerReady')
 
-    print ('Connecting to REDIS')
-    local redis = require('redis')
-    client = redis.connect(redisParams)
-    if client:select(0) == true then
-        print ('REDIS connection success!')
+    if redisSettings.enable == true then
+        print ('Connecting to REDIS at ' .. redisSettings.params.host .. ':' .. redisSettings.params.port)
+        local redis = require('redis')
+        client = redis.connect(redisSettings.params)
+        if client:select(0) == true then
+            print ('REDIS connection success!')
+        end
     end
 end
 

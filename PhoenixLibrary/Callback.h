@@ -5,7 +5,8 @@
 #include <algorithm>
 
 namespace phoenix {
-	template<bool, class> class callback;
+	template<bool, class> class callback
+	{};
 
 	template<bool fireOnce, class R, typename... ArgTypes>
 	class callback<fireOnce, R(ArgTypes...)>
