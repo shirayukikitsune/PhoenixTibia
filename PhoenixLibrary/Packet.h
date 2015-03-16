@@ -230,7 +230,7 @@ template <>
 std::string Packet::peek<std::string>() {
 	uint16_t len = pop<uint16_t>();
 	std::string out((char*)&m_buffer[m_position], len);
-	m_position -= sizeof uint16_t;
+	m_position -= sizeof(uint16_t);
 	return out;
 }
 
