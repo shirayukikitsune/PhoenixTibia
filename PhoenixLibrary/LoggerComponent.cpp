@@ -4,6 +4,10 @@
 #include <ctime>
 #include <array>
 
+#ifndef __CLRCALL_OR_CDECL
+#define __CLRCALL_OR_CDECL __cdecl
+#endif
+
 const std::string& LoggerComponent::getName() const
 {
 	static std::string _name("logger");
