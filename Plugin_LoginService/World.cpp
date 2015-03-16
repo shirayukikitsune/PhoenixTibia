@@ -25,7 +25,7 @@ void World::read(Packet &packet)
 
 void World::write(Packet &packet)
 {
-	packet.push<std::string>(name()).push<std::string>(m_endpoint.address().to_string()).push<unsigned short>(m_endpoint.port()).push<uint32_t>(m_id);
+	packet.push(name()).push(m_endpoint.address().to_string()).push<unsigned short>(m_endpoint.port()).push<uint32_t>(m_id);
 }
 
 const std::string& World::name()

@@ -224,8 +224,8 @@ void InterserverClient::connect()
 
 					packet->push<uint8_t>(0xF1)
 						.push<uint16_t>(protocolVersion)
-						.push<std::string>(username)
-						.push<std::string>(password);
+						.push(username)
+						.push(password);
 
 					send(packet, [this](boost::system::error_code ec, size_t) {
 						if (ec) std::cout << "InterserverClient::async_write error: " << ec.message() << std::endl;
@@ -317,7 +317,7 @@ void InterserverClient::requestPacketSerializable(const Capability &capability, 
 		.push<PacketSerializable>(capability)
 		.push<uint8_t>((uint8_t)RelayOperation::RequestPacketSerializable)
 		.push<uint32_t>(++id)
-		.push<std::string>(className)
+		.push(className)
 		.push<PacketSerializable>(data);
 
 	m_relays[id] = callback;

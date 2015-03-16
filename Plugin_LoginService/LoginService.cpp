@@ -127,7 +127,7 @@ bool LoginService::handleFirst(NetworkConnectionPtr connection, PacketPtr packet
 				PacketPtr outPacket(new Packet);
 
 				// Send MOTD
-				outPacket->push<uint8_t>(0x14).push<std::string>("1\nPhoenixTibiaServer v0.1");
+				outPacket->push<uint8_t>(0x14).push("1\nPhoenixTibiaServer v0.1");
 
 				// Send character list
 				outPacket->push<uint8_t>(0x64)
@@ -135,8 +135,8 @@ bool LoginService::handleFirst(NetworkConnectionPtr connection, PacketPtr packet
 					.push<uint8_t>((uint8_t)g_worlds.size());
 				for (auto &&world : g_worlds) {
 					outPacket->push<uint8_t>((uint8_t)world.first)
-						.push<std::string>(world.second->name())
-						.push<std::string>(world.second->endpoint().address().to_string())
+						.push(world.second->name())
+						.push(world.second->endpoint().address().to_string())
 						.push<uint16_t>(world.second->endpoint().port())
 						.push<uint8_t>(0);
 				}
@@ -145,7 +145,7 @@ bool LoginService::handleFirst(NetworkConnectionPtr connection, PacketPtr packet
 				outPacket->push<uint8_t>((uint8_t)g_worlds.size());
 				for (auto &&world : g_worlds) {
 					outPacket->push<uint8_t>((uint8_t)world.first)
-						.push<std::string>("Test on " + world.second->name());
+						.push("Test on " + world.second->name());
 				}
 
 				// Add premium days

@@ -20,7 +20,7 @@ void Account::read(Packet &packet)
 
 void Account::write(Packet &packet) const
 {
-	packet.push<uint8_t>(m_success ? 1 : 0).push<std::string>(m_username).push<std::string>(m_password);
+	packet.push<uint8_t>(m_success ? 1 : 0).push(m_username).push(m_password);
 }
 
 const std::string& Account::username() const

@@ -63,8 +63,7 @@ public:
 		return *this;
 	}
 
-	template <>
-	Packet& push<std::string>(const std::string &str) {
+	Packet& push(const std::string &str) {
 		push<uint16_t>((uint16_t)str.length());
 
 		while (m_position + str.length() > m_buffer.size()) {

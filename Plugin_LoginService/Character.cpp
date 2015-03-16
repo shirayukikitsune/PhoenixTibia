@@ -21,7 +21,7 @@ void Character::read(Packet &packet)
 
 void Character::write(Packet &packet)
 {
-	packet.push<std::string>(m_name).push<uint32_t>(m_world ? m_world->id() : 0);
+	packet.push(m_name).push<uint32_t>(m_world ? m_world->id() : 0);
 }
 
 const std::string& Character::name()

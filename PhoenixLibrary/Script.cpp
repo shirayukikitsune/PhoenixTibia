@@ -729,7 +729,7 @@ int packet_pushString(lua_State *L) {
 	auto value = luaL_checkstring(L, 2);
 	lua_pop(L, 2);
 
-	packet->push<std::string>(value);
+	packet->push(value);
 
 	return 0;
 }

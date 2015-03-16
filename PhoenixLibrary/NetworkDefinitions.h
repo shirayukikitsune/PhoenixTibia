@@ -55,7 +55,7 @@ public:
 		serviceEndpoint.port(packet.pop<uint16_t>());
 	}
 	virtual void write(Packet &packet) const { 
-		packet.push<std::string>(name).push<std::string>(serviceEndpoint.address().to_string()).push<uint16_t>(serviceEndpoint.port());
+		packet.push(name).push(serviceEndpoint.address().to_string()).push<uint16_t>(serviceEndpoint.port());
 	}
 };
 
