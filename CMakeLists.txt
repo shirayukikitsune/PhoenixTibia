@@ -1,3 +1,4 @@
+cmake_minimum_required(VERSION 2.8.11)
 project (PHOENIX_TIBIA_SERVER)
 
 add_subdirectory(PhoenixLibrary)
