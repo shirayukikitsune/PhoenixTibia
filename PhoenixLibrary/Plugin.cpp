@@ -44,9 +44,9 @@ bool Plugin::load(const std::string &path, std::shared_ptr<Settings> settings, s
 #if defined _WIN32 || defined _WIN64
 	m_handle = (void*)LoadLibraryExA(file.c_str(), NULL, 0);
 #else
-	char *path = strdup(file.c_str());
-	m_handle = dlopen(path, RTLD_NOW);
-	free(path);
+	char *filepath = strdup(file.c_str());
+	m_handle = dlopen(filepath, RTLD_NOW);
+	free(filepath);
 #endif
 
 	if (!m_handle) return false;
