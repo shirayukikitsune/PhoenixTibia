@@ -8,18 +8,12 @@ namespace phoenix {
 	template<bool, class> class callback
 	{};
 
-	template<bool fireOnce, class R, typename... ArgTypes>
-	class callback<fireOnce, R(ArgTypes...)>
-	{
-	public:
-		typedef class callback<fireOnce, R(ArgTypes...)> _Myt;
-		typedef R result_type;
-		typedef std::function<R(ArgTypes...)> function_type;
-
-	private:
-		template <bool once>
+	namespace nonvoid {
+		template <bool once, class R, typename... ArgTypes>
 		class caller {
 		public:
+			typedef std::function<R(ArgTypes...)> function_type;
+
 			std::map<int, R> operator()(std::map<int, function_type> &functions, ArgTypes... args) {
 				std::map<int, R> r;
 
@@ -31,9 +25,11 @@ namespace phoenix {
 			}
 		};
 
-		template <>
-		class caller < true > {
+		template <class R, typename... ArgTypes>
+		class caller <true, R, ArgTypes...> {
 		public:
+			typedef std::function<R(ArgTypes...)> function_type;
+
 			std::map<int, R> operator()(std::map<int, function_type> &functions, ArgTypes... args) {
 				std::map<int, R> r;
 
@@ -46,8 +42,18 @@ namespace phoenix {
 				return r;
 			}
 		};
+	}
 
-		caller<fireOnce> caller;
+	template<bool fireOnce, class R, typename... ArgTypes>
+	class callback<fireOnce, R(ArgTypes...)>
+	{
+	public:
+		typedef class callback<fireOnce, R(ArgTypes...)> _Myt;
+		typedef R result_type;
+		typedef std::function<R(ArgTypes...)> function_type;
+
+	private:
+		nonvoid::caller<fireOnce, R, ArgTypes...> caller;
 	public:
 		callback()
 		{
@@ -111,6 +117,34 @@ namespace phoenix {
 		std::map<int, function_type> m_functions;
 	};
 
+	namespace noret {
+		template <bool once, typename... ArgTypes>
+		class caller {
+		public:
+			typedef std::function<void(ArgTypes...)> function_type;
+
+			void operator()(std::map<int, function_type> &functions, ArgTypes... args) {
+				for (auto &f : functions) {
+					f.second(args...);
+				}
+			}
+		};
+
+		template <typename... ArgTypes>
+		class caller < true, ArgTypes... > {
+		public:
+			typedef std::function<void(ArgTypes...)> function_type;
+
+			void operator()(std::map<int, function_type> &functions, ArgTypes... args) {
+				for (auto &f : functions) {
+					f.second(args...);
+				}
+
+				functions.clear();
+			}
+		};
+	}
+
 	template<bool fireOnce, class... ArgTypes>
 	class callback<fireOnce, void(ArgTypes...)>
 	{
@@ -120,29 +154,8 @@ namespace phoenix {
 		typedef std::function<void(ArgTypes...)> function_type;
 
 	private:
-		template <bool once>
-		class caller {
-		public:
-			void operator()(std::map<int, function_type> &functions, ArgTypes... args) {
-				for (auto &f : functions) {
-					f.second(args...);
-				}
-			}
-		};
 
-		template <>
-		class caller < true > {
-		public:
-			void operator()(std::map<int, function_type> &functions, ArgTypes... args) {
-				for (auto &f : functions) {
-					f.second(args...);
-				}
-
-				functions.clear();
-			}
-		};
-
-		caller<fireOnce> caller;
+		noret::caller<fireOnce, ArgTypes...> caller;
 
 	public:
 		callback()
